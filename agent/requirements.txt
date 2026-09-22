@@ -1,0 +1,5 @@
+pydantic>=2.7.0
+# Optional enhancement dependencies for native Win32 service handling and process metrics
+# pywin32>=306; sys_platform == 'win32'
+# psutil>=5.9.0
+pytest>=8.0.0

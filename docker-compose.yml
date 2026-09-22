@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: retrovault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: backupdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d backupdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: retrovault-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/backupdb
+      - JWT_SECRET_KEY=retrovault_production_secure_jwt_secret_key_1995
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - BACKUP_REPOSITORY_PATH=/backup/repository
+      - CORS_ORIGINS=["http://localhost:5173", "http://127.0.0.1:5173"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server:/app
+      - backup_repository_data:/backup/repository
+    command: >
+      sh -c "alembic -c alembic.ini upgrade head &&
+             python seed.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  postgres_data:
+    driver: local
+  backup_repository_data:
+    driver: local
