@@ -44,7 +44,8 @@ class FileUploadResult:
     original_path: str
     size_bytes: int
     sha256: Optional[str] = None
-    status: str = "uploaded"  # uploaded, failed, changed_during_backup, locked
+    storage_object: Optional[str] = None
+    status: str = "uploaded"  # uploaded, failed, changed_during_backup, locked, interrupted
     error_message: Optional[str] = None
     retries: int = 0
 
@@ -53,9 +54,18 @@ class FileUploadResult:
 class BackupProgress:
     """Live progress telemetry of an ongoing backup run."""
     run_id: int
+    backup_type: str = "full"
+    state: str = "BACKING_UP"
     files_discovered: int = 0
     files_uploaded: int = 0
     files_failed: int = 0
+    files_new: int = 0
+    files_modified: int = 0
+    files_unchanged: int = 0
+    files_deleted: int = 0
+    files_locked: int = 0
+    files_vss_recovered: int = 0
+    files_skipped: int = 0
     bytes_total: int = 0
     bytes_uploaded: int = 0
     current_file: Optional[str] = None
@@ -73,12 +83,22 @@ class BackupRunSummary:
     """Final summary of a backup run execution."""
     run_id: int
     client_id: str
-    status: str  # completed, failed, cancelled
+    status: str  # completed, failed, cancelled, completed_with_warnings
     files_discovered: int
     files_uploaded: int
     files_failed: int
     bytes_total: int
     bytes_uploaded: int
     duration_seconds: float
+    backup_type: str = "full"
+    state: str = "COMPLETED"
+    files_new: int = 0
+    files_modified: int = 0
+    files_unchanged: int = 0
+    files_deleted: int = 0
+    files_locked: int = 0
+    files_vss_recovered: int = 0
+    files_skipped: int = 0
     recovery_point_created: bool = False
+    checkpoint_saved: bool = False
     error_message: Optional[str] = None

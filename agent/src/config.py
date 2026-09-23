@@ -24,6 +24,14 @@ class AgentConfig(BaseModel):
     max_retries: int = Field(default=5, ge=1, le=20, description="Max connection retries")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates for HTTPS")
     agent_version: str = Field(default="1.0.0", description="Agent release version")
+    consistency_mode: str = Field(default="VSS_WHEN_REQUIRED", description="Consistency mode: LIVE, VSS_WHEN_REQUIRED, VSS_REQUIRED")
+    enable_vss: bool = Field(default=True, description="Enable Volume Shadow Copy Service integration")
+    enable_usn_journal: bool = Field(default=True, description="Enable NTFS USN Journal optimization")
+    chunk_size: int = Field(default=4194304, ge=65536, le=67108864, description="Chunk size in bytes for resumable upload")
+    retry_backoff_max_seconds: int = Field(default=60, ge=1, le=600, description="Maximum exponential retry backoff delay")
+    checkpoint_interval_seconds: int = Field(default=5, ge=1, le=120, description="Checkpoint flush interval in seconds")
+    resume_interrupted_runs: bool = Field(default=True, description="Automatically resume interrupted runs on startup")
+    state_dir: Optional[str] = Field(default=None, description="Custom state directory for checkpoints")
 
     @field_validator("server_url")
     @classmethod

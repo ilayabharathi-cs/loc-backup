@@ -144,7 +144,7 @@ def get_agent_config(client_id: str, db: Session = Depends(get_db)):
             "id": pending_job.id,
             "job_id": pending_job.job_id,
             "policy_id": pending_job.policy_id,
-            "backup_type": "full",
+            "backup_type": getattr(pending_job, "backup_type", "full") or "full",
             "status": pending_job.status
         }
 

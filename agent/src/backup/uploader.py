@@ -30,12 +30,22 @@ class FileUploader:
     def upload_file(
         self,
         file_info: DiscoveredFile,
-        progress_callback: Optional[Callable[[int], None]] = None
+        progress_callback: Optional[Callable[[int], None]] = None,
+        change_type: str = "FULL"
     ) -> FileUploadResult:
         """
         Stream a file to the server and verify integrity.
         progress_callback: called with chunk bytes for real-time progress.
         """
+        # V4 Resumable Transfer Engine integration if attached
+        transfer_eng = getattr(self, "transfer_engine", None)
+        if transfer_eng is not None:
+            return transfer_eng.transfer_file(
+                file_info,
+                change_type=change_type,
+                progress_callback=progress_callback
+            )
+
         file_path = file_info.original_path
 
         # 1. Check if file is accessible
@@ -108,6 +118,7 @@ class FileUploader:
             "X-SHA256": sha256_hash,
             "X-File-Size": str(pre_size),
             "X-Modified-Time": mtime_iso,
+            "X-Change-Type": change_type,
             "Content-Type": "application/octet-stream",
             "Content-Length": str(pre_size)
         }

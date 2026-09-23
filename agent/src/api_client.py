@@ -104,3 +104,148 @@ class BackendApiClient:
         if res.get("success"):
             return res.get("data", {})
         raise ApiClientError(f"Failed to fetch config for {client_id}: {res.get('error')}")
+
+    def get_latest_recovery_point(self, client_id: str, policy_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Fetch latest valid completed Recovery Point for baseline comparison."""
+        endpoint = f"/backups/recovery-points/latest?client_id={client_id}"
+        if policy_id is not None:
+            endpoint += f"&policy_id={policy_id}"
+        res = self._make_request("GET", endpoint)
+        if res.get("success"):
+            return res.get("data")
+        return None
+
+    def get_recovery_point_manifest(self, recovery_point_id: int, include_deleted: bool = False) -> Dict[str, Any]:
+        """Fetch the logical file manifest of a Recovery Point."""
+        endpoint = f"/backups/recovery-points/{recovery_point_id}/manifest"
+        if include_deleted:
+            endpoint += "?include_deleted=true"
+        res = self._make_request("GET", endpoint)
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to retrieve manifest for recovery point {recovery_point_id}: {res.get('error')}")
+
+    def record_run_metadata(self, run_id: int, files: list) -> list:
+        """Batch record UNCHANGED and DELETED file metadata on the server."""
+        if not files:
+            return []
+        res = self._make_request("POST", f"/backups/runs/{run_id}/record-metadata", {"files": files})
+        if res.get("success"):
+            return res.get("data", [])
+        raise ApiClientError(f"Failed to record run metadata for run {run_id}: {res.get('error')}")
+
+    def create_upload_session(
+        self,
+        run_id: int,
+        file_path: str,
+        relative_path: Optional[str],
+        total_size: int,
+        chunk_size: int = 4194304,
+        change_type: str = "FULL",
+        expected_sha256: Optional[str] = None,
+        file_mtime: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create or resume an upload session on the control plane."""
+        payload = {
+            "file_path": file_path,
+            "relative_path": relative_path,
+            "total_size": total_size,
+            "chunk_size": chunk_size,
+            "change_type": change_type,
+            "expected_sha256": expected_sha256,
+            "file_mtime": file_mtime
+        }
+        res = self._make_request("POST", f"/backups/runs/{run_id}/upload-session", payload)
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to create upload session: {res.get('error') or res.get('message')}")
+
+    def get_upload_session_status(self, session_id: str) -> Dict[str, Any]:
+        """Query server for confirmed persisted chunks (Server Authority)."""
+        res = self._make_request("GET", f"/backups/upload-session/{session_id}/status")
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to get upload session status: {res.get('error') or res.get('message')}")
+
+    def upload_chunk(
+        self,
+        session_id: str,
+        chunk_index: int,
+        chunk_bytes: bytes,
+        chunk_sha256: str,
+        offset: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Upload individual chunk with SHA-256 integrity verification and idempotency."""
+        url = f"{self.base_url}/api/v1/backups/upload-session/{session_id}/chunks/{chunk_index}"
+        headers = {
+            "User-Agent": f"RetroVault-Agent/{self.config.agent_version}",
+            "Content-Type": "application/octet-stream",
+            "Content-Length": str(len(chunk_bytes)),
+            "X-Chunk-SHA256": chunk_sha256
+        }
+        if offset is not None:
+            headers["X-Chunk-Offset"] = str(offset)
+
+        req = Request(url, data=chunk_bytes, headers=headers, method="PUT")
+        with urlopen(req, timeout=self.timeout) as resp:
+            body = resp.read().decode("utf-8")
+            result = json.loads(body) if body else {}
+            if result.get("success"):
+                return result.get("data", {})
+            raise ApiClientError(f"Chunk upload rejected: {result.get('error')}")
+
+    def complete_upload_session(self, session_id: str, final_sha256: str, total_size: int) -> Dict[str, Any]:
+        """Finalize upload session and verify file integrity on server."""
+        payload = {
+            "final_sha256": final_sha256,
+            "total_size": total_size
+        }
+        res = self._make_request("POST", f"/backups/upload-session/{session_id}/complete", payload)
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to complete upload session: {res.get('error') or res.get('message')}")
+
+    def get_run_state(self, run_id: int) -> Dict[str, Any]:
+        """Fetch current run state and lease status."""
+        res = self._make_request("GET", f"/backups/runs/{run_id}/state")
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to get run state: {res.get('error')}")
+
+    def update_run_state(self, run_id: int, state: str, message: Optional[str] = None) -> Dict[str, Any]:
+        """Report run state transition to server."""
+        payload = {"state": state, "message": message}
+        res = self._make_request("POST", f"/backups/runs/{run_id}/state", payload)
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to update run state: {res.get('error')}")
+
+    def save_run_checkpoint(self, run_id: int, checkpoint_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Sync local checkpoint to server."""
+        res = self._make_request("POST", f"/backups/runs/{run_id}/checkpoint", checkpoint_data)
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to record checkpoint on server: {res.get('error')}")
+
+    def interrupt_run(self, run_id: int) -> Dict[str, Any]:
+        """Mark run as INTERRUPTED on server."""
+        res = self._make_request("POST", f"/backups/runs/{run_id}/interrupt")
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to interrupt run: {res.get('error')}")
+
+    def resume_run(self, run_id: int) -> Dict[str, Any]:
+        """Resume an interrupted run."""
+        res = self._make_request("POST", f"/backups/runs/{run_id}/resume")
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to resume run: {res.get('error')}")
+
+    def renew_run_lease(self, run_id: int, lease_id: str, duration_seconds: int = 300) -> Dict[str, Any]:
+        """Renew backup run ownership lease."""
+        payload = {"lease_id": lease_id, "duration_seconds": duration_seconds}
+        res = self._make_request("POST", f"/backups/runs/{run_id}/lease/renew", payload)
+        if res.get("success"):
+            return res.get("data", {})
+        raise ApiClientError(f"Failed to renew lease: {res.get('error')}")
+

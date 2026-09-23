@@ -6,12 +6,21 @@ export interface BackupRunApiData {
   client_id: number;
   client_identifier?: string;
   backup_type: string;
+  baseline_run_id?: number;
   started_at: string;
   completed_at?: string;
   status: string;
   files_processed: number;
+  files_discovered?: number;
+  files_uploaded?: number;
+  files_failed?: number;
+  files_new?: number;
+  files_modified?: number;
+  files_unchanged?: number;
+  files_deleted?: number;
   bytes_processed: number;
   bytes_uploaded: number;
+  bytes_total?: number;
   error_count: number;
   error_message?: string;
 }
@@ -22,6 +31,7 @@ export interface RecoveryPointApiData {
   client_identifier?: string;
   client_hostname?: string;
   backup_run_id: number;
+  backup_type?: string;
   timestamp: string;
   files_count: number;
   total_size_bytes: number;
@@ -47,6 +57,18 @@ export const backupsApi = {
 
   getRecoveryPoint: async (recoveryPointId: number) => {
     const res = await apiClient.get(`/backups/recovery-points/${recoveryPointId}`);
+    return res.data;
+  },
+
+  getLatestRecoveryPoint: async (params: { client_id: string; policy_id?: number }) => {
+    const res = await apiClient.get('/backups/recovery-points/latest', { params });
+    return res.data;
+  },
+
+  getManifest: async (recoveryPointId: number, includeDeleted: boolean = false) => {
+    const res = await apiClient.get(`/backups/recovery-points/${recoveryPointId}/manifest`, {
+      params: { include_deleted: includeDeleted }
+    });
     return res.data;
   },
 

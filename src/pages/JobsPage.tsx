@@ -346,6 +346,33 @@ export const JobsPage: React.FC = () => {
               </div>
             )}
 
+            {/* Incremental Change Breakdown if available */}
+            {(inspectedJob.filesNew !== undefined || inspectedJob.filesModified !== undefined || inspectedJob.backupType === 'Incremental') && (
+              <div className="win-fieldset">
+                <legend className="text-[10px] font-bold text-black bg-[#c0c0c0] px-1">
+                  Incremental File Change Breakdown
+                </legend>
+                <div className="win-inset bg-[#dfdfdf] p-2 grid grid-cols-4 gap-2 text-center font-mono text-[11px]">
+                  <div className="bg-white p-1 border border-[#808080]">
+                    <span className="text-[#008000] block font-bold text-[13px]">{inspectedJob.filesNew ?? 0}</span>
+                    <span className="text-[9px] text-[#505050]">NEW</span>
+                  </div>
+                  <div className="bg-white p-1 border border-[#808080]">
+                    <span className="text-[#000080] block font-bold text-[13px]">{inspectedJob.filesModified ?? 0}</span>
+                    <span className="text-[9px] text-[#505050]">MODIFIED</span>
+                  </div>
+                  <div className="bg-white p-1 border border-[#808080]">
+                    <span className="text-black block font-bold text-[13px]">{inspectedJob.filesUnchanged ?? 0}</span>
+                    <span className="text-[9px] text-[#505050]">UNCHANGED</span>
+                  </div>
+                  <div className="bg-white p-1 border border-[#808080]">
+                    <span className="text-[#aa0000] block font-bold text-[13px]">{inspectedJob.filesDeleted ?? 0}</span>
+                    <span className="text-[9px] text-[#505050]">DELETED</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Source folders */}
             <div className="win-fieldset">
               <legend className="text-[10px] font-bold text-black bg-[#c0c0c0] px-1">

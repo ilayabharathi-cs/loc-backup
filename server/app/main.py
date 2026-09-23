@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from app.config import settings
 from app.database.connection import check_db_connection
 from app.api.v1 import (
-    auth, clients, agents, policies, jobs, backups, restore, storage, activity, dashboard
+    auth, clients, agents, policies, jobs, backups, restore, storage, retention, activity, dashboard
 )
 
 # Structured application logging
@@ -106,8 +106,25 @@ app.include_router(jobs.router, prefix=settings.API_V1_STR)
 app.include_router(backups.router, prefix=settings.API_V1_STR)
 app.include_router(restore.router, prefix=settings.API_V1_STR)
 app.include_router(storage.router, prefix=settings.API_V1_STR)
+app.include_router(retention.router, prefix=settings.API_V1_STR)
 app.include_router(activity.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
+
+
+@app.on_event("startup")
+def startup_reconcile():
+    """Crash recovery: reconcile any stranded DELETING objects upon server start."""
+    try:
+        from app.database.session import SessionLocal
+        from app.services.gc.garbage_collector import GarbageCollector
+        with SessionLocal() as db:
+            gc = GarbageCollector(db)
+            reconciled = gc.reconcile_startup_state()
+            if reconciled > 0:
+                logger.info(f"Reconciled {reconciled} stranded storage objects on startup")
+    except Exception as e:
+        logger.warning(f"Startup GC reconciliation notice: {e}")
+
 
 if __name__ == "__main__":
     import uvicorn

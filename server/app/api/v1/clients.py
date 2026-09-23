@@ -224,19 +224,29 @@ def disable_client(
 def trigger_client_backup(
     client_id: str,
     policy_id: Optional[int] = Query(None),
+    backup_type: Optional[str] = Query(None),
+    request_data: Optional[dict] = None,
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user)
 ):
-    """Trigger a full backup job for a specific client workstation."""
+    """Trigger a backup job (full or incremental) for a specific client workstation."""
     import datetime
     from app.models.backup_job import BackupJob
     from app.models.backup_policy import BackupPolicy
 
     client = find_client(db, client_id)
     eff_policy_id = policy_id
+    if not eff_policy_id and request_data:
+        eff_policy_id = request_data.get("policy_id")
     if not eff_policy_id:
         active_policy = db.query(BackupPolicy).filter(BackupPolicy.is_active == True).first()
         eff_policy_id = active_policy.id if active_policy else None
+
+    # Resolve backup_type
+    raw_type = backup_type
+    if not raw_type and request_data:
+        raw_type = request_data.get("backup_type")
+    eff_backup_type = (raw_type or "full").lower()
 
     # Check for existing active or pending job for this client
     existing_job = db.query(BackupJob).filter(
@@ -250,6 +260,7 @@ def trigger_client_backup(
             data={
                 "job_id": existing_job.job_id,
                 "client_id": client.client_id,
+                "backup_type": getattr(existing_job, "backup_type", "full"),
                 "status": existing_job.status,
                 "already_active": True
             },
@@ -264,6 +275,7 @@ def trigger_client_backup(
         job_id=new_job_id,
         client_id=client.id,
         policy_id=eff_policy_id,
+        backup_type=eff_backup_type,
         status="pending",
         scheduled_at=now,
         created_at=now
@@ -279,7 +291,7 @@ def trigger_client_backup(
         resource_id=client.client_id,
         user_id=current_user.id if current_user else None,
         client_id=client.id,
-        details=f"On-demand full backup job {job.job_id} scheduled for {client.hostname}"
+        details=f"On-demand {eff_backup_type.upper()} backup job {job.job_id} scheduled for {client.hostname}"
     )
 
     return ApiResponse(
@@ -289,9 +301,10 @@ def trigger_client_backup(
             "job_id": job.job_id,
             "client_id": client.client_id,
             "policy_id": job.policy_id,
+            "backup_type": job.backup_type,
             "status": job.status,
             "scheduled_at": now.isoformat()
         },
-        message=f"Full backup job {job.job_id} queued for {client.client_id}"
+        message=f"{eff_backup_type.upper()} backup job {job.job_id} queued for {client.client_id}"
     )
 

@@ -24,6 +24,7 @@ class BackupPolicy(Base):
 
     paths = relationship("BackupPolicyPath", back_populates="policy", cascade="all, delete-orphan")
     jobs = relationship("BackupJob", back_populates="policy")
+    retention_policy = relationship("RetentionPolicy", back_populates="policy", uselist=False, cascade="all, delete-orphan")
 
 class BackupPolicyPath(Base):
     __tablename__ = "backup_policy_paths"

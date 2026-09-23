@@ -51,11 +51,15 @@ class BackupScheduler:
             # Check for queued/pending backup jobs
             pending_job = config_data.get("pending_job")
             if pending_job and resolved and resolved.valid_paths:
-                self.logger.info(f"Received pending backup job: {pending_job.get('job_id')}. Initiating full backup...")
+                b_type = (pending_job.get("backup_type") or "full").lower()
+                self.logger.info(f"Received pending backup job: {pending_job.get('job_id')} ({b_type.upper()}). Initiating...")
                 from agent.src.backup.backup_engine import BackupEngine
                 engine = BackupEngine(self.config, self.identity, self.api_client)
-                summary = engine.run_full_backup(resolved, stop_event=self.stop_event)
-                self.logger.info(f"Executed pending backup job. Status: {summary.status}")
+                if b_type == "incremental":
+                    summary = engine.run_incremental_backup(resolved, stop_event=self.stop_event)
+                else:
+                    summary = engine.run_full_backup(resolved, stop_event=self.stop_event)
+                self.logger.info(f"Executed pending backup job ({b_type.upper()}). Status: {summary.status}")
 
             return resolved
         except ApiClientError as e:

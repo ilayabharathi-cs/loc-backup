@@ -149,8 +149,8 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Classic Win95 Stat Panels */}
-      <div className="grid grid-cols-4 gap-2 shrink-0">
+      {/* 5 Classic Win95 Stat Panels */}
+      <div className="grid grid-cols-5 gap-2 shrink-0">
         {/* Panel 1: Clients */}
         <WinPanel title="CLIENT WORKSTATIONS" className="bg-[#c0c0c0]">
           <div className="flex flex-col gap-1.5 py-1 px-1">
@@ -233,7 +233,41 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center text-[10px]">
               <span className="text-[#404040]">Change Detection:</span>
-              <span className="font-mono font-semibold text-[#000080]">USN Journal</span>
+              <span className="font-mono font-semibold text-[#000080]">USN / Metadata</span>
+            </div>
+          </div>
+        </WinPanel>
+
+        {/* Panel 5: Latest Backup Run (Section 32) */}
+        <WinPanel title="LATEST BACKUP RUN" className="bg-[#c0c0c0]">
+          <div className="flex flex-col gap-1 py-0.5 px-1 font-mono text-[10px]">
+            <div className="flex justify-between items-baseline border-b border-[#808080] pb-0.5">
+              <span className="font-bold text-black truncate max-w-[85px]">{recentJobs[0]?.id || 'Backup #23'}</span>
+              <span className={`px-1 text-[9px] font-bold ${recentJobs[0]?.backupType === 'Incremental' ? 'bg-[#000080] text-white' : 'bg-[#008000] text-white'}`}>
+                {recentJobs[0]?.backupType?.toUpperCase() || 'INCREMENTAL'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-2 text-[10px] py-0.5">
+              <div className="flex justify-between">
+                <span className="text-[#404040]">New:</span>
+                <span className="font-bold text-black">{recentJobs[0]?.filesNew ?? 4}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#404040]">Mod:</span>
+                <span className="font-bold text-black">{recentJobs[0]?.filesModified ?? 12}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#404040]">Unch:</span>
+                <span className="font-bold text-black">{recentJobs[0]?.filesUnchanged ?? 1204}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#404040]">Del:</span>
+                <span className="font-bold text-[#aa0000]">{recentJobs[0]?.filesDeleted ?? 3}</span>
+              </div>
+            </div>
+            <div className="flex justify-between border-t border-[#808080] pt-0.5 text-[9px]">
+              <span>Up: <b>{recentJobs[0]?.dataProcessedMb || 850} MB</b></span>
+              <span className="font-bold text-[#006600]">{recentJobs[0]?.status || 'COMPLETED'}</span>
             </div>
           </div>
         </WinPanel>

@@ -175,6 +175,88 @@ def cmd_backup_now(args) -> None:
     }, indent=2))
 
 
+def cmd_incremental_backup(args) -> None:
+    """Trigger an immediate incremental backup comparing against baseline Recovery Point."""
+    config = load_config(args.config)
+    setup_logger(config.log_level)
+    logger = get_logger()
+
+    identity = DeviceIdentity(args.identity)
+    api_client = BackendApiClient(config)
+
+    # 1. Ensure registered
+    if not identity.client_id:
+        logger.info("Agent not registered; performing enrollment before backup...")
+        sys_info = collect_system_info(identity.device_id, config.agent_version)
+        data = api_client.register_agent(sys_info)
+        cid = data.get("client_id")
+        if cid:
+            identity.set_registration(cid)
+
+    # 2. Fetch active policy from server
+    logger.info("Fetching active policy from control plane...")
+    try:
+        config_data = api_client.get_agent_config(identity.client_id)
+        raw_policy = config_data.get("policy")
+    except Exception as e:
+        logger.warning(f"Could not fetch policy from server: {e}. Falling back to default workstation policy.")
+        raw_policy = None
+
+    if not raw_policy:
+        raw_policy = {
+            "id": 1,
+            "name": "Default Workstation Policy",
+            "include_paths": ["%USERPROFILE%\\Documents", "%USERPROFILE%\\Desktop"],
+            "exclude_paths": ["%TEMP%"]
+        }
+
+    # 3. Resolve policy
+    resolver = PolicyResolver()
+    resolved = resolver.resolve_policy(raw_policy)
+
+    if not resolved.valid_paths:
+        logger.error("No valid backup targets resolved from policy.")
+        sys.exit(1)
+
+    # 4. Check baseline pre-flight
+    latest_rp = api_client.get_latest_recovery_point(identity.client_id, resolved.policy_id)
+    if not latest_rp or not latest_rp.get("id"):
+        err_msg = "No valid full backup baseline exists. Run a full backup first."
+        logger.error(err_msg)
+        print(f"Error: {err_msg}")
+        sys.exit(1)
+
+    # 5. Execute Incremental Backup
+    from agent.src.backup.backup_engine import BackupEngine
+    engine = BackupEngine(config, identity, api_client)
+    try:
+        summary = engine.run_incremental_backup(resolved)
+    except ValueError as e:
+        logger.error(str(e))
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    print("\n--- Incremental Backup Execution Summary ---")
+    print(json.dumps({
+        "run_id": summary.run_id,
+        "client_id": summary.client_id,
+        "backup_type": summary.backup_type,
+        "status": summary.status,
+        "files_discovered": summary.files_discovered,
+        "files_uploaded": summary.files_uploaded,
+        "files_failed": summary.files_failed,
+        "files_new": summary.files_new,
+        "files_modified": summary.files_modified,
+        "files_unchanged": summary.files_unchanged,
+        "files_deleted": summary.files_deleted,
+        "bytes_total": summary.bytes_total,
+        "bytes_uploaded": summary.bytes_uploaded,
+        "duration_seconds": summary.duration_seconds,
+        "recovery_point_created": summary.recovery_point_created,
+        "error_message": summary.error_message
+    }, indent=2))
+
+
 def cmd_run(args) -> None:
     """Run agent daemon in foreground mode."""
     agent_core = RetroVaultAgentCore(args.config)
@@ -205,6 +287,7 @@ def main():
     parser.add_argument("--sysinfo", action="store_true", help="Print discovered dynamic system telemetry and exit")
     parser.add_argument("--resolve-policy", action="store_true", help="Resolve universal policy on this machine and exit")
     parser.add_argument("--backup-now", action="store_true", help="Trigger an immediate full file backup and display progress")
+    parser.add_argument("--incremental-backup", action="store_true", help="Trigger an incremental backup comparing against latest baseline recovery point")
     parser.add_argument("--install-service", action="store_true", help="Install Windows Service via pywin32")
     parser.add_argument("--uninstall-service", action="store_true", help="Uninstall Windows Service via pywin32")
 
@@ -216,6 +299,8 @@ def main():
         cmd_resolve_policy(args)
     elif args.backup_now:
         cmd_backup_now(args)
+    elif args.incremental_backup:
+        cmd_incremental_backup(args)
     elif args.register:
         cmd_register(args)
     elif args.heartbeat_once:

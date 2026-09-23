@@ -40,6 +40,13 @@ export interface BackupJob {
   errorMessage?: string;
   changeDetection?: string;
   transferSpeedMbps?: number;
+  filesDiscovered?: number;
+  filesUploaded?: number;
+  filesFailed?: number;
+  filesNew?: number;
+  filesModified?: number;
+  filesUnchanged?: number;
+  filesDeleted?: number;
 }
 
 export interface PolicyFolder {
@@ -97,6 +104,40 @@ export interface StorageMetrics {
   dedupRatio: number;
   compressionRatio: number;
   lastVerification: string;
+  totalLogicalBytes?: number;
+  totalStoredBytes?: number;
+  bytesSaved?: number;
+  savingsPercent?: number;
+  overallEfficiencyRatio?: number;
+}
+
+export interface GfsRetentionPolicy {
+  id: number;
+  name: string;
+  policyId?: number;
+  keepLast: number;
+  daily: number;
+  weekly: number;
+  monthly: number;
+  yearly: number;
+  timezone: string;
+  isActive: boolean;
+}
+
+export interface StorageObjectRecord {
+  id: number;
+  objectId: string;
+  contentSha256: string;
+  storedSha256: string;
+  originalSize: number;
+  storedSize: number;
+  compressionAlgorithm: string;
+  compressionRatio: number;
+  referenceCount: number;
+  state: string;
+  integrityStatus: string;
+  verifiedAt?: string;
+  createdAt: string;
 }
 
 export type LogSeverity = 'INFO' | 'WARNING' | 'ERROR';
