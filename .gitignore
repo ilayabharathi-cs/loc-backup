@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.pytest_cache/
+
+# Local backup & runtime data
+repository/
+backup_repo/
+test_real_backup_dir/
+server/repository/
+server/app/reports_storage/*
+!server/app/reports_storage/.gitkeep
+

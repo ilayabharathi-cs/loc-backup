@@ -138,3 +138,48 @@ export const RestoreArrowIcon: React.FC<IconProps> = ({ className = '', size = 1
     <polyline points="10,2 14,4 10,6" fill="#000080" />
   </svg>
 );
+
+export const CloudStorageIcon: React.FC<IconProps> = ({ className = '', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={`inline-block shrink-0 ${className}`}>
+    <path d="M4 11 C2.5 11 1.5 10 1.5 8.5 C1.5 7.2 2.5 6.2 3.8 6.1 C4.3 4.3 5.9 3 7.8 3 C10.1 3 12 4.9 12 7.2 C13.2 7.5 14.5 8.6 14.5 10 C14.5 11.5 13.2 12.5 11.8 12.5 H4 Z" fill="#ffffff" stroke="#000080" strokeWidth="1" />
+    <rect x="5" y="8" width="6" height="4" fill="#008080" stroke="#000000" strokeWidth="0.8" />
+    <circle cx="7" cy="10" r="0.6" fill="#ffffff" />
+    <circle cx="9" cy="10" r="0.6" fill="#00ff00" />
+  </svg>
+);
+
+export const RunbookIcon: React.FC<IconProps> = ({ className = '', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={`inline-block shrink-0 ${className}`}>
+    <rect x="3" y="2" width="10" height="13" fill="#ffffff" stroke="#000000" strokeWidth="1" />
+    <rect x="5" y="1" width="6" height="2" fill="#808080" stroke="#000000" strokeWidth="0.8" />
+    <line x1="5" y1="5" x2="11" y2="5" stroke="#000080" strokeWidth="1" />
+    <line x1="7" y1="8" x2="11" y2="8" stroke="#808080" strokeWidth="1" />
+    <polyline points="4.5,8 5.5,9 6.5,7" stroke="#008000" strokeWidth="1" fill="none" />
+    <line x1="7" y1="11" x2="11" y2="11" stroke="#808080" strokeWidth="1" />
+    <polyline points="4.5,11 5.5,12 6.5,10" stroke="#008000" strokeWidth="1" fill="none" />
+  </svg>
+);
+
+export const InstantMountIcon: React.FC<IconProps> = ({ className = '', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={`inline-block shrink-0 ${className}`}>
+    <rect x="1" y="6" width="14" height="8" fill="#c0c0c0" stroke="#000000" strokeWidth="1" />
+    <circle cx="12" cy="10" r="1" fill="#00ff00" />
+    <polygon points="9,1 4,8 8,8 7,14 13,6 9,6" fill="#ffff00" stroke="#800000" strokeWidth="0.8" />
+  </svg>
+);
+
+export const RefreshIcon: React.FC<IconProps> = ({ className = '', size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={`inline-block shrink-0 ${className}`}>
+    <path d="M13 8 A5 5 0 1 1 11.5 4.5 L14 4.5" stroke="#000080" strokeWidth="1.8" strokeLinecap="square" fill="none" />
+    <polygon points="14,2 14,5 11,5" fill="#000080" />
+  </svg>
+);
+
+export const SearchIcon: React.FC<IconProps> = ({ className = '', size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={`inline-block shrink-0 ${className}`}>
+    <circle cx="6.5" cy="6.5" r="4.5" stroke="#000000" strokeWidth="1.5" fill="none" />
+    <line x1="10" y1="10" x2="14" y2="14" stroke="#000000" strokeWidth="2" strokeLinecap="square" />
+  </svg>
+);
+
+

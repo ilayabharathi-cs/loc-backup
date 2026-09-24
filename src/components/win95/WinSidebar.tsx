@@ -8,7 +8,10 @@ import {
   ShieldCheckIcon, 
   ActivityLogIcon, 
   SettingsWrenchIcon, 
-  ServerIcon 
+  ServerIcon,
+  CloudStorageIcon,
+  RunbookIcon,
+  InstantMountIcon
 } from './WinIcons';
 import { useApp } from '../../context/AppContext';
 
@@ -125,11 +128,43 @@ export const WinSidebar: React.FC = () => {
       icon: <RestoreArrowIcon size={18} />
     },
     {
+      id: 'instant-mounts',
+      label: 'Instant Recovery',
+      path: '/recovery/instant-mounts',
+      icon: <InstantMountIcon size={18} />,
+      badge: 'V12',
+      badgeColor: '#800080'
+    },
+    {
+      id: 'dr-runbooks',
+      label: 'DR Runbooks',
+      path: '/dr/runbooks',
+      icon: <RunbookIcon size={18} />,
+      badge: 'V12',
+      badgeColor: '#b22222'
+    },
+    {
       id: 'storage',
       label: 'Storage',
       path: '/storage',
       icon: <HardDriveIcon size={18} />,
       badge: '2.4 TB'
+    },
+    {
+      id: 'storage-tiers',
+      label: 'Storage Tiers',
+      path: '/storage/tiers',
+      icon: <CloudStorageIcon size={18} />,
+      badge: 'V12',
+      badgeColor: '#008080'
+    },
+    {
+      id: 'cloud-credentials',
+      label: 'Cloud Credentials',
+      path: '/storage/credentials',
+      icon: <CloudStorageIcon size={18} />,
+      badge: 'V12',
+      badgeColor: '#008080'
     },
     {
       id: 'replication',
@@ -198,7 +233,8 @@ export const WinSidebar: React.FC = () => {
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || 
             (item.path === '/dashboard' && location.pathname === '/') ||
-            (item.path === '/clients' && location.pathname.startsWith('/clients/'));
+            (item.path === '/clients' && location.pathname.startsWith('/clients/')) ||
+            (item.path === '/dr/runbooks' && location.pathname.startsWith('/dr/'));
 
           return (
             <button

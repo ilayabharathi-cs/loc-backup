@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "server": "powershell -Command \"$env:PYTHONPATH='server'; .\\server\\.venv\\Scripts\\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000 --app-dir server --reload\"",
+    "server": "python3 run_server.py",
     "build": "tsc -b && vite build",
+    "test": "node --test tests/v12_frontend.test.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
