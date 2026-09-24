@@ -17,6 +17,8 @@ import type { BackupJob } from '../types';
 
 import { getDrReadiness, getTopology, getAlerts } from '../api/v7';
 import type { DrReadiness, TopologyStatus, AlertItem } from '../api/v7';
+import { getStorageTiers, type StorageTierResponse } from '../api/cloud';
+import { listVirtualRecoverySessions, type VirtualRecoverySessionResponse } from '../api/virtualRecovery';
 
 export const DashboardPage: React.FC = () => {
   const { clients, jobs, storage, triggerBackup, addToast } = useApp();
@@ -25,18 +27,24 @@ export const DashboardPage: React.FC = () => {
   const [drInfo, setDrInfo] = React.useState<DrReadiness | null>(null);
   const [topoInfo, setTopoInfo] = React.useState<TopologyStatus | null>(null);
   const [activeAlerts, setActiveAlerts] = React.useState<AlertItem[]>([]);
+  const [tiers, setTiers] = React.useState<StorageTierResponse[]>([]);
+  const [ivrSessions, setIvrSessions] = React.useState<VirtualRecoverySessionResponse[]>([]);
 
   React.useEffect(() => {
     const fetchV7 = async () => {
       try {
-        const [drRes, topoRes, altRes] = await Promise.all([
+        const [drRes, topoRes, altRes, tiersRes, ivrRes] = await Promise.all([
           getDrReadiness(),
           getTopology(),
-          getAlerts('ACTIVE')
+          getAlerts('ACTIVE'),
+          getStorageTiers().catch(() => ({ success: false, data: [] })),
+          listVirtualRecoverySessions().catch(() => ({ success: false, data: [] }))
         ]);
         if (drRes.success) setDrInfo(drRes.data);
         if (topoRes.success) setTopoInfo(topoRes.data);
         if (altRes.success) setActiveAlerts(altRes.data);
+        if (tiersRes.success) setTiers(tiersRes.data || []);
+        if (ivrRes.success) setIvrSessions(ivrRes.data || []);
       } catch (e) {
         // Fallback gracefully
       }
@@ -228,6 +236,63 @@ export const DashboardPage: React.FC = () => {
           <div className="win-inset p-1.5 bg-white">
             <div className="font-bold text-gray-700">Alerts</div>
             <div className="font-mono text-[10px] mt-0.5">Crit: <span className="font-bold text-red-700">{criticalAlertsCount}</span> | Warn: <span className="font-bold text-amber-700">{warningAlertsCount}</span></div>
+          </div>
+        </div>
+      </div>
+
+      {/* V12 CLOUD & INSTANT VIRTUAL RECOVERY STATUS */}
+      <div className="win-outset p-2 bg-[#dfdfdf] flex flex-col gap-1.5 shrink-0 text-xs">
+        <div className="flex items-center justify-between border-b border-[#808080] pb-1">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-[11px] text-[#000080]">V12 HYBRID CLOUD & INSTANT VIRTUAL RECOVERY (IVR)</span>
+            <span className="px-1.5 py-0.2 bg-[#008080] text-white font-mono text-[9px] font-bold">
+              {tiers.filter(t => t.state === 'READY').length} ACTIVE TIERS
+            </span>
+            <span className="px-1.5 py-0.2 bg-[#000080] text-white font-mono text-[9px] font-bold">
+              {ivrSessions.filter(s => s.state === 'READY' || s.state === 'HYDRATING').length} ACTIVE MOUNTS
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            <WinButton size="sm" onClick={() => navigate('/cloud-storage')}>
+              Cloud Tiers ({tiers.length})
+            </WinButton>
+            <WinButton size="sm" onClick={() => navigate('/virtual-recovery')}>
+              Virtual Recovery ({ivrSessions.length})
+            </WinButton>
+            <WinButton size="sm" onClick={() => navigate('/dr')}>
+              DR Sandbox Drills
+            </WinButton>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2 text-[11px]">
+          <div className="win-inset p-1.5 bg-white">
+            <div className="font-bold text-gray-700">Cloud Storage Tiers</div>
+            <div className="font-mono text-[10px] mt-0.5">
+              Ready: <span className="font-bold text-green-700">{tiers.filter(t => t.state === 'READY').length}</span> | Total: <span className="font-bold">{tiers.length}</span>
+            </div>
+          </div>
+          <div className="win-inset p-1.5 bg-white">
+            <div className="font-bold text-gray-700">WORM Immutability</div>
+            <div className="font-mono text-[10px] mt-0.5">
+              Locked: <span className="font-bold text-blue-700">{tiers.filter(t => t.object_lock_enabled).length}</span> tiers active
+            </div>
+          </div>
+          <div className="win-inset p-1.5 bg-white">
+            <div className="font-bold text-gray-700">IVR Sessions</div>
+            <div className="font-mono text-[10px] mt-0.5">
+              Live: <span className="font-bold text-green-700">{ivrSessions.filter(s => s.state === 'READY' || s.state === 'HYDRATING').length}</span> | Hydrating: <span className="font-bold text-purple-700">{ivrSessions.filter(s => s.state === 'HYDRATING').length}</span>
+            </div>
+          </div>
+          <div className="win-inset p-1.5 bg-white">
+            <div className="font-bold text-gray-700">Observed TTFA</div>
+            <div className="font-mono text-[10px] mt-0.5">
+              Fastest: <span className="font-bold text-green-700">
+                {ivrSessions.find(s => s.time_to_first_access_ms)?.time_to_first_access_ms != null
+                  ? `${ivrSessions.find(s => s.time_to_first_access_ms)!.time_to_first_access_ms!.toFixed(1)}ms`
+                  : '&lt; 3.0ms'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

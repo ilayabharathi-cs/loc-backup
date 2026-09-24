@@ -14,7 +14,7 @@ from app.api.v1 import (
     cluster, distributed_scheduler, fleet_bulk,
     operations, capacity, observability_api, compliance_api, reports_api,
     workloads, recovery_verification, recovery_readiness, backup_chains,
-    policy_orchestration, remediations, dependencies
+    policy_orchestration, remediations, dependencies, storage_tiers, virtual_recovery
 )
 
 # Structured application logging
@@ -141,6 +141,9 @@ app.include_router(backup_chains.router, prefix=settings.API_V1_STR)
 app.include_router(policy_orchestration.router, prefix=settings.API_V1_STR)
 app.include_router(remediations.router, prefix=settings.API_V1_STR)
 app.include_router(dependencies.router, prefix=settings.API_V1_STR)
+app.include_router(storage_tiers.cloud_credentials_router, prefix=settings.API_V1_STR)
+app.include_router(storage_tiers.storage_tiers_router, prefix=settings.API_V1_STR)
+app.include_router(virtual_recovery.router, prefix=settings.API_V1_STR)
 
 
 @app.on_event("startup")

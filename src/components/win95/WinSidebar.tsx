@@ -128,12 +128,28 @@ export const WinSidebar: React.FC = () => {
       icon: <RestoreArrowIcon size={18} />
     },
     {
+      id: 'virtual-recovery',
+      label: 'Virtual Recovery',
+      path: '/virtual-recovery',
+      icon: <RestoreArrowIcon size={18} />,
+      badge: 'IVR',
+      badgeColor: '#000080'
+    },
+    {
       id: 'instant-mounts',
       label: 'Instant Recovery',
       path: '/recovery/instant-mounts',
       icon: <InstantMountIcon size={18} />,
       badge: 'V12',
       badgeColor: '#800080'
+    },
+    {
+      id: 'dr',
+      label: 'Disaster Recovery',
+      path: '/dr',
+      icon: <ShieldCheckIcon size={18} />,
+      badge: 'DR',
+      badgeColor: '#aa0000'
     },
     {
       id: 'dr-runbooks',
@@ -149,6 +165,14 @@ export const WinSidebar: React.FC = () => {
       path: '/storage',
       icon: <HardDriveIcon size={18} />,
       badge: '2.4 TB'
+    },
+    {
+      id: 'cloud-storage',
+      label: 'Cloud Storage',
+      path: '/cloud-storage',
+      icon: <HardDriveIcon size={18} />,
+      badge: 'V12',
+      badgeColor: '#008080'
     },
     {
       id: 'storage-tiers',
