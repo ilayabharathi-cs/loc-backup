@@ -12,7 +12,9 @@ from app.api.v1 import (
     repositories, replication, security, alerts, dr, settings as settings_api,
     security_events, fleet, incidents, integrity, simulations,
     cluster, distributed_scheduler, fleet_bulk,
-    operations, capacity, observability_api, compliance_api, reports_api
+    operations, capacity, observability_api, compliance_api, reports_api,
+    workloads, recovery_verification, recovery_readiness, backup_chains,
+    policy_orchestration, remediations, dependencies
 )
 
 # Structured application logging
@@ -132,6 +134,13 @@ app.include_router(capacity.router, prefix=settings.API_V1_STR)
 app.include_router(observability_api.router, prefix=settings.API_V1_STR)
 app.include_router(compliance_api.router, prefix=settings.API_V1_STR)
 app.include_router(reports_api.router, prefix=settings.API_V1_STR)
+app.include_router(workloads.router, prefix=settings.API_V1_STR)
+app.include_router(recovery_verification.router, prefix=settings.API_V1_STR)
+app.include_router(recovery_readiness.router, prefix=settings.API_V1_STR)
+app.include_router(backup_chains.router, prefix=settings.API_V1_STR)
+app.include_router(policy_orchestration.router, prefix=settings.API_V1_STR)
+app.include_router(remediations.router, prefix=settings.API_V1_STR)
+app.include_router(dependencies.router, prefix=settings.API_V1_STR)
 
 
 @app.on_event("startup")

@@ -37,6 +37,38 @@ export const WinSidebar: React.FC = () => {
       icon: <ServerIcon size={18} />
     },
     {
+      id: 'workloads',
+      label: 'Workloads',
+      path: '/workloads',
+      icon: <ServerIcon size={18} />,
+      badge: 'V11',
+      badgeColor: '#800080'
+    },
+    {
+      id: 'verification',
+      label: 'Restore Verification',
+      path: '/recovery-verification',
+      icon: <ShieldCheckIcon size={18} />
+    },
+    {
+      id: 'readiness',
+      label: 'Recovery Readiness',
+      path: '/recovery-readiness',
+      icon: <ActivityLogIcon size={18} />
+    },
+    {
+      id: 'policy-gov',
+      label: 'Policy Governance',
+      path: '/policy-orchestration',
+      icon: <SettingsWrenchIcon size={18} />
+    },
+    {
+      id: 'app-restore',
+      label: 'App Restore Wizard',
+      path: '/application-restore',
+      icon: <RestoreArrowIcon size={18} />
+    },
+    {
       id: 'operations',
       label: 'Operations',
       path: '/operations',

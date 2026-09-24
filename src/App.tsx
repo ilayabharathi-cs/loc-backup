@@ -21,6 +21,11 @@ import { CapacityPage } from './pages/CapacityPage';
 import { ObservabilityPage } from './pages/ObservabilityPage';
 import { IncidentsPage } from './pages/IncidentsPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { WorkloadsPage } from './pages/WorkloadsPage';
+import { RecoveryVerificationPage } from './pages/RecoveryVerificationPage';
+import { RecoveryReadinessPage } from './pages/RecoveryReadinessPage';
+import { PolicyOrchestrationPage } from './pages/PolicyOrchestrationPage';
+import { ApplicationRestorePage } from './pages/ApplicationRestorePage';
 
 export const App: React.FC = () => {
   return (
@@ -30,6 +35,11 @@ export const App: React.FC = () => {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="workloads" element={<WorkloadsPage />} />
+            <Route path="recovery-verification" element={<RecoveryVerificationPage />} />
+            <Route path="recovery-readiness" element={<RecoveryReadinessPage />} />
+            <Route path="policy-orchestration" element={<PolicyOrchestrationPage />} />
+            <Route path="application-restore" element={<ApplicationRestorePage />} />
             <Route path="operations" element={<OperationsPage />} />
             <Route path="operations/incidents" element={<IncidentsPage />} />
             <Route path="capacity" element={<CapacityPage />} />

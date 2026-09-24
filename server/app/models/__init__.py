@@ -51,6 +51,21 @@ from app.models.observability_v10_models import (
     ComplianceReport,
     ReportExecution
 )
+from app.models.workload_v11_models import (
+    Workload,
+    WorkloadProviderConfig,
+    WorkloadProtection,
+    WorkloadArtifact,
+    ApplicationConsistencyRecord,
+    BackupChain,
+    RecoveryVerification,
+    RecoveryVerificationStep,
+    RecoveryReadiness,
+    PolicyLifecycle,
+    PolicyApproval,
+    RemediationAction,
+    DependencyRelation
+)
 
 __all__ = [
     "Base",
@@ -110,6 +125,19 @@ __all__ = [
     "CapacityForecast",
     "ComplianceEvidence",
     "ComplianceReport",
-    "ReportExecution"
+    "ReportExecution",
+    "Workload",
+    "WorkloadProviderConfig",
+    "WorkloadProtection",
+    "WorkloadArtifact",
+    "ApplicationConsistencyRecord",
+    "BackupChain",
+    "RecoveryVerification",
+    "RecoveryVerificationStep",
+    "RecoveryReadiness",
+    "PolicyLifecycle",
+    "PolicyApproval",
+    "RemediationAction",
+    "DependencyRelation"
 ]
 

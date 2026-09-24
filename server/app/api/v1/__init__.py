@@ -3,7 +3,9 @@ from app.api.v1 import (
     repositories, replication, security, alerts, dr, settings,
     security_events, fleet, incidents, integrity, simulations,
     cluster, distributed_scheduler, fleet_bulk,
-    operations, capacity, observability_api, compliance_api, reports_api
+    operations, capacity, observability_api, compliance_api, reports_api,
+    workloads, recovery_verification, recovery_readiness, backup_chains,
+    policy_orchestration, remediations, dependencies
 )
 
 __all__ = [
@@ -11,5 +13,7 @@ __all__ = [
     "repositories", "replication", "security", "alerts", "dr", "settings",
     "security_events", "fleet", "incidents", "integrity", "simulations",
     "cluster", "distributed_scheduler", "fleet_bulk",
-    "operations", "capacity", "observability_api", "compliance_api", "reports_api"
+    "operations", "capacity", "observability_api", "compliance_api", "reports_api",
+    "workloads", "recovery_verification", "recovery_readiness", "backup_chains",
+    "policy_orchestration", "remediations", "dependencies"
 ]

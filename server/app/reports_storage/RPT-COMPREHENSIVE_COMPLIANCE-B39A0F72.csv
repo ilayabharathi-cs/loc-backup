@@ -1,0 +1,21 @@
+REPORT_ID,RPT-COMPREHENSIVE_COMPLIANCE-B39A0F72
+TITLE,Q3 Comprehensive Compliance Audit
+TYPE,comprehensive_compliance
+PERIOD_START,2026-08-25T05:02:44.854652
+PERIOD_END,2026-09-24T05:02:44.854652
+GENERATED_AT,2026-09-24T05:02:44.965919
+
+SECTION,VALUE
+backup_execution,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""1094 backup run executions logged during period.""}"
+backup_success,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""581/1094 (53.1%) backup runs succeeded during period.""}"
+retention,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""4 retention policies active, 6 policy evaluations in period.""}"
+immutability,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""10 recovery points actively held under tamper-proof immutability lock.""}"
+restore_tests,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""124/258 restore/DR verification jobs executed successfully in period.""}"
+replication,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""45 offsite replication sync operations logged in period.""}"
+integrity_scans,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""19 repository and CAS cryptographic integrity scans executed in period.""}"
+access_control,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""Role-based access controls active across 3 users: {'admin': 1, 'operator': 1, 'viewer': 1}""}"
+mfa,"{""status"": ""EVIDENCE_MISSING"", ""summary"": ""0 administrator account(s) have TOTP MFA actively enforced.""}"
+audit_events,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""2727 auditable system actions logged in immutable audit trail.""}"
+policy_changes,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""15 agent configuration drift events evaluated in period.""}"
+deletion_approvals,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""13 two-man rule deletion guard requests tracked in period.""}"
+security_incidents,"{""status"": ""EVIDENCE_AVAILABLE"", ""summary"": ""25 security incidents evaluated in period.""}"

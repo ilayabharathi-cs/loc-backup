@@ -1,0 +1,64 @@
+{
+  "report_id": "RPT-COMPREHENSIVE_COMPLIANCE-DDE427AB",
+  "title": "Q3 Comprehensive Compliance Audit",
+  "report_type": "comprehensive_compliance",
+  "period_start": "2026-08-25T04:47:36.389406",
+  "period_end": "2026-09-24T04:47:36.389406",
+  "system_version": "10.0.0",
+  "scope": "GLOBAL",
+  "generated_at": "2026-09-24T04:47:36.476236",
+  "evidence": {
+    "backup_execution": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "1058 backup run executions logged during period."
+    },
+    "backup_success": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "558/1058 (52.7%) backup runs succeeded during period."
+    },
+    "retention": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "4 retention policies active, 6 policy evaluations in period."
+    },
+    "immutability": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "9 recovery points actively held under tamper-proof immutability lock."
+    },
+    "restore_tests": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "119/248 restore/DR verification jobs executed successfully in period."
+    },
+    "replication": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "43 offsite replication sync operations logged in period."
+    },
+    "integrity_scans": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "18 repository and CAS cryptographic integrity scans executed in period."
+    },
+    "access_control": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "Role-based access controls active across 3 users: {'admin': 1, 'operator': 1, 'viewer': 1}"
+    },
+    "mfa": {
+      "status": "EVIDENCE_MISSING",
+      "summary": "0 administrator account(s) have TOTP MFA actively enforced."
+    },
+    "audit_events": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "2628 auditable system actions logged in immutable audit trail."
+    },
+    "policy_changes": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "14 agent configuration drift events evaluated in period."
+    },
+    "deletion_approvals": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "12 two-man rule deletion guard requests tracked in period."
+    },
+    "security_incidents": {
+      "status": "EVIDENCE_AVAILABLE",
+      "summary": "23 security incidents evaluated in period."
+    }
+  }
+}
