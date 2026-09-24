@@ -204,6 +204,12 @@ class RestorePlanner:
         if not rp:
             raise ValueError(f"Recovery Point {recovery_point_id} not found")
 
+        # Security check: validate destination root and any requested selected paths
+        PathValidator.resolve_destination(destination_root, "test.tmp")
+        if selected_paths:
+            for p in selected_paths:
+                PathValidator.sanitize_relative_path(p)
+
         all_files = cls.get_recovery_point_logical_files(db, recovery_point_id)
         candidate_files = cls.filter_files(all_files, restore_mode, selected_paths)
 

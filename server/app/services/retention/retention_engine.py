@@ -102,6 +102,15 @@ class RetentionEngine:
                     dec["tier"] = "RESTORE_ACTIVE"
                     dec["reason"] = "Protected by active restore job"
 
+                # Safety check: V8 Security Protection & Security Hold
+                import datetime
+                now_utc = datetime.datetime.now(datetime.timezone.utc)
+                is_held = rp.security_hold_until and (rp.security_hold_until > now_utc if rp.security_hold_until.tzinfo else rp.security_hold_until > datetime.datetime.utcnow())
+                if getattr(rp, "protection_state", "NORMAL") in ["PROTECTED", "RETENTION_LOCKED", "SECURITY_HOLD", "QUARANTINED"] or is_held:
+                    dec["keep"] = True
+                    dec["tier"] = getattr(rp, "protection_state", "PROTECTED")
+                    dec["reason"] = f"Protected by security state: {getattr(rp, 'protection_state', 'PROTECTED')} ({rp.protected_reason or 'Security Hold'})"
+
                 if dec["keep"]:
                     rp.retention_status = "active"
                     rp.retention_tier = dec["tier"]

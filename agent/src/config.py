@@ -18,6 +18,7 @@ class AgentConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     server_url: str = Field(default="http://127.0.0.1:8000", description="Backend control plane URL")
+    server_endpoints: Optional[list[str]] = Field(default=None, description="Ordered list of backend control plane URLs for multi-node HA failover")
     heartbeat_interval_seconds: int = Field(default=30, ge=5, le=3600, description="Heartbeat interval in seconds")
     log_level: str = Field(default="INFO", description="Logging level: DEBUG, INFO, WARNING, ERROR")
     request_timeout_seconds: int = Field(default=10, ge=1, le=120, description="HTTP timeout in seconds")

@@ -27,14 +27,20 @@ class StorageObject(Base):
     encryption_status: Mapped[str] = mapped_column(String(20), default="NONE", nullable=False)  # NONE, AES256_GCM
     storage_path: Mapped[str] = mapped_column(String(500), nullable=False)  # e.g. objects/d9/4a/d94abc...
     reference_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False, index=True)
-    state: Mapped[str] = mapped_column(String(20), default="AVAILABLE", nullable=False, index=True)  # AVAILABLE, VERIFYING, CORRUPTED, DELETING, DELETED
+    state: Mapped[str] = mapped_column(String(20), default="AVAILABLE", nullable=False, index=True)  # AVAILABLE, VERIFYING, CORRUPTED, DELETING, DELETED, QUARANTINED
     integrity_status: Mapped[str] = mapped_column(String(20), default="VALID", nullable=False)  # VALID, CORRUPTED, UNVERIFIED
     verified_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    quarantined_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    quarantine_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     backup_files = relationship("BackupFile", back_populates="storage_obj")
     gc_items = relationship("GarbageCollectionItem", back_populates="storage_obj")
+
+    @property
+    def size_bytes(self) -> int:
+        return self.stored_size
 
     __table_args__ = (
         Index("idx_storage_obj_content_sha", "content_sha256"),

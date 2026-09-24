@@ -37,6 +37,40 @@ export const WinSidebar: React.FC = () => {
       icon: <ServerIcon size={18} />
     },
     {
+      id: 'operations',
+      label: 'Operations',
+      path: '/operations',
+      icon: <ActivityLogIcon size={18} />,
+      badge: 'V10',
+      badgeColor: '#000080'
+    },
+    {
+      id: 'incidents',
+      label: 'Incidents',
+      path: '/operations/incidents',
+      icon: <ShieldCheckIcon size={18} />
+    },
+    {
+      id: 'capacity',
+      label: 'Capacity',
+      path: '/capacity',
+      icon: <HardDriveIcon size={18} />
+    },
+    {
+      id: 'observability',
+      label: 'Observability',
+      path: '/observability',
+      icon: <ActivityLogIcon size={18} />
+    },
+    {
+      id: 'reports',
+      label: 'Reports Center',
+      path: '/reports',
+      icon: <BackupTapeIcon size={18} />,
+      badge: 'Audit',
+      badgeColor: '#008000'
+    },
+    {
       id: 'clients',
       label: 'Clients',
       path: '/clients',
@@ -66,6 +100,26 @@ export const WinSidebar: React.FC = () => {
       badge: '2.4 TB'
     },
     {
+      id: 'replication',
+      label: 'Replication',
+      path: '/replication',
+      icon: <BackupTapeIcon size={18} />,
+      badge: '3-2-1',
+      badgeColor: '#008080'
+    },
+    {
+      id: 'alerts',
+      label: 'Alerts',
+      path: '/alerts',
+      icon: <ActivityLogIcon size={18} />
+    },
+    {
+      id: 'security',
+      label: 'Security & MFA',
+      path: '/security',
+      icon: <ShieldCheckIcon size={18} />
+    },
+    {
       id: 'policies',
       label: 'Policies',
       path: '/policies',
@@ -76,6 +130,22 @@ export const WinSidebar: React.FC = () => {
       label: 'Activity Log',
       path: '/activity',
       icon: <ActivityLogIcon size={18} />
+    },
+    {
+      id: 'cluster',
+      label: 'HA Cluster',
+      path: '/cluster',
+      icon: <ServerIcon size={18} />,
+      badge: 'V9',
+      badgeColor: '#008000'
+    },
+    {
+      id: 'scheduler',
+      label: 'Scheduler',
+      path: '/scheduler',
+      icon: <ActivityLogIcon size={18} />,
+      badge: 'HA',
+      badgeColor: '#000080'
     },
     {
       id: 'settings',

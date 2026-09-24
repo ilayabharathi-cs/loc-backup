@@ -15,7 +15,7 @@ class PolicyBase(BaseModel):
     description: Optional[str] = None
     backup_type: str = "incremental"  # full, incremental
     change_detection: str = "usn_journal"  # usn_journal, scheduled_scan
-    rpo_target_seconds: int = Field(default=120, ge=30, le=86400)
+    rpo_target_seconds: int = Field(default=120, ge=1, le=86400)
     compression_enabled: bool = True
     encryption_enabled: bool = True
     cpu_limit_percent: int = Field(default=10, ge=1, le=100)

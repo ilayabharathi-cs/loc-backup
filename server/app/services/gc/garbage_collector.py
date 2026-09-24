@@ -33,10 +33,15 @@ class GarbageCollector:
         1. Any valid, active (non-expired) Recovery Point across all clients.
         2. Any active (pending/running) backup runs or upload sessions.
         """
-        # 1. Recovery points that are active (retention_status == 'active' or not expired)
+        # 1. Recovery points that are active or protected (retention_status == 'active' OR protection_state != 'NORMAL' OR security_hold_until > now)
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         active_rp_subquery = select(RecoveryPoint.backup_run_id).where(
             RecoveryPoint.status.in_(["valid", "completed"]),
-            RecoveryPoint.retention_status == "active",
+            (
+                (RecoveryPoint.retention_status == "active") |
+                (RecoveryPoint.protection_state.in_(["PROTECTED", "RETENTION_LOCKED", "SECURITY_HOLD", "QUARANTINED"])) |
+                (RecoveryPoint.security_hold_until > now_utc)
+            )
         )
 
         # Storage object IDs referenced by files in active recovery points
@@ -75,7 +80,28 @@ class GarbageCollector:
         ).distinct()
         active_obj_ids.update(self.db.execute(active_restore_stmt).scalars().all())
 
-        return active_obj_ids
+        # 4. Protect StorageObjects referenced by any active replication job
+        try:
+            from app.models.replication import ReplicationJob, ReplicationItem
+            active_repl_statuses = ["CREATED", "PLANNING", "QUEUED", "RUNNING", "PAUSED", "RESUMING", "VERIFYING"]
+            active_repl_subquery = select(ReplicationJob.id).where(ReplicationJob.status.in_(active_repl_statuses))
+            active_repl_stmt = select(ReplicationItem.storage_object_id).where(
+                ReplicationItem.job_id.in_(active_repl_subquery),
+                ReplicationItem.storage_object_id.isnot(None)
+            ).distinct()
+            active_obj_ids.update(self.db.execute(active_repl_stmt).scalars().all())
+        except Exception:
+            pass
+
+        result_ids: Set[Any] = set()
+        for x in active_obj_ids:
+            if x is not None:
+                try:
+                    result_ids.add(int(x))
+                    result_ids.add(str(x))
+                except (ValueError, TypeError):
+                    result_ids.add(x)
+        return result_ids
 
     def run_garbage_collection(self, dry_run: bool = False) -> GarbageCollectionJob:
         """

@@ -52,9 +52,58 @@ def get_current_user(
 
     return user
 
+ROLE_PERMISSIONS = {
+    "admin": ["*"],
+    "ADMIN": ["*"],
+    "operator": [
+        "clients.read", "clients.manage", "policies.read", "policies.manage",
+        "backup.execute", "restore.execute", "repositories.read", "repositories.manage",
+        "replication.read", "replication.execute", "audit.read", "dr.execute", "dr.read", "alerts.manage"
+    ],
+    "OPERATOR": [
+        "clients.read", "clients.manage", "policies.read", "policies.manage",
+        "backup.execute", "restore.execute", "repositories.read", "repositories.manage",
+        "replication.read", "replication.execute", "audit.read", "dr.execute", "dr.read", "alerts.manage"
+    ],
+    "auditor": [
+        "audit.read", "security.manage", "clients.read", "repositories.read",
+        "policies.read", "replication.read", "dr.read"
+    ],
+    "AUDITOR": [
+        "audit.read", "security.manage", "clients.read", "repositories.read",
+        "policies.read", "replication.read", "dr.read"
+    ],
+    "viewer": [
+        "clients.read", "policies.read", "repositories.read", "audit.read",
+        "replication.read", "dr.read"
+    ],
+    "VIEWER": [
+        "clients.read", "policies.read", "repositories.read", "audit.read",
+        "replication.read", "dr.read"
+    ],
+}
+
+def user_has_permission(role: str, permission: str) -> bool:
+    perms = ROLE_PERMISSIONS.get(role, [])
+    if "*" in perms:
+        return True
+    return permission in perms
+
+def require_permission(required_perm: str):
+    def perm_checker(current_user: User = Depends(get_current_user)) -> User:
+        if not user_has_permission(current_user.role, required_perm):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied: Missing required permission '{required_perm}'"
+            )
+        return current_user
+    return perm_checker
+
 def require_role(allowed_roles: List[str]):
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in allowed_roles:
+        user_role_lower = current_user.role.lower()
+        allowed_lower = [r.lower() for r in allowed_roles]
+        if user_role_lower not in allowed_lower:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied: Requires one of roles: {', '.join(allowed_roles)}"

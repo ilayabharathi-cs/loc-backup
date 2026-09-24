@@ -1,0 +1,66 @@
+{
+  "report_id": "RPT-BACKUP_OPERATIONS-26FB14A1",
+  "title": "Weekly Operations Audit",
+  "report_type": "backup_operations",
+  "period_start": "2026-08-24T15:06:18.304824",
+  "period_end": "2026-09-23T15:06:18.304824",
+  "system_version": "10.0.0",
+  "scope": "GLOBAL",
+  "generated_at": "2026-09-23T15:06:18.373228",
+  "evidence": {
+    "backup_execution_status": "EVIDENCE_AVAILABLE",
+    "backup_success_status": "EVIDENCE_AVAILABLE",
+    "performance_analytics": {
+      "window": "30d",
+      "total_runs": 974,
+      "duration_seconds": {
+        "count": 419,
+        "min": 0.02,
+        "max": 600.0,
+        "average": 121.05,
+        "median": 0.05,
+        "p95": 600.0
+      },
+      "logical_bytes": {
+        "count": 974,
+        "min": 0.0,
+        "max": 1024000.0,
+        "average": 47504.24,
+        "median": 0.0,
+        "p95": 8192.0
+      },
+      "uploaded_bytes": {
+        "count": 974,
+        "min": 0.0,
+        "max": 648019968.0,
+        "average": 25961821.5,
+        "median": 0.0,
+        "p95": 432013312.0
+      },
+      "dedup_ratio": {
+        "count": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "average": 0.0,
+        "median": 0.0,
+        "p95": 0.0
+      },
+      "files_scanned": {
+        "count": 974,
+        "min": 0.0,
+        "max": 55.0,
+        "average": 3.13,
+        "median": 0.0,
+        "p95": 42.0
+      },
+      "files_changed": {
+        "count": 974,
+        "min": 0.0,
+        "max": 65.0,
+        "average": 0.48,
+        "median": 0.0,
+        "p95": 0.0
+      }
+    }
+  }
+}

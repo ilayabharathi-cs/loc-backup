@@ -190,8 +190,8 @@ def test_restore_job_safeguard(admin_token):
     rp_res = client.get("/api/v1/backups/recovery-points")
     assert rp_res.status_code == 200
     rps = rp_res.json()["data"]
-    assert len(rps) > 0
-    rp_id = rps[0]["id"]
+    target_rp = next((r for r in rps if r.get("client_id") == 1), rps[0])
+    rp_id = target_rp["id"]
 
     # Same client restore (Allowed without explicit acknowledgement)
     same_client_payload = {

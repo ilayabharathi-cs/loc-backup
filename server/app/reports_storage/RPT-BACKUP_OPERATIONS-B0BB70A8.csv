@@ -1,0 +1,11 @@
+REPORT_ID,RPT-BACKUP_OPERATIONS-B0BB70A8
+TITLE,Weekly Operations Audit
+TYPE,backup_operations
+PERIOD_START,2026-08-24T15:05:04.084854
+PERIOD_END,2026-09-23T15:05:04.084854
+GENERATED_AT,2026-09-23T15:05:04.152091
+
+SECTION,VALUE
+backup_execution_status,EVIDENCE_AVAILABLE
+backup_success_status,EVIDENCE_AVAILABLE
+performance_analytics,"{""window"": ""30d"", ""total_runs"": 961, ""duration_seconds"": {""count"": 413, ""min"": 0.02, ""max"": 600.0, ""average"": 122.81, ""median"": 0.05, ""p95"": 600.0}, ""logical_bytes"": {""count"": 961, ""min"": 0.0, ""max"": 1024000.0, ""average"": 47079.17, ""median"": 0.0, ""p95"": 8192.0}, ""uploaded_bytes"": {""count"": 961, ""min"": 0.0, ""max"": 648019968.0, ""average"": 25863424.08, ""median"": 0.0, ""p95"": 432013312.0}, ""dedup_ratio"": {""count"": 0, ""min"": 0.0, ""max"": 0.0, ""average"": 0.0, ""median"": 0.0, ""p95"": 0.0}, ""files_scanned"": {""count"": 961, ""min"": 0.0, ""max"": 55.0, ""average"": 3.12, ""median"": 0.0, ""p95"": 42.0}, ""files_changed"": {""count"": 961, ""min"": 0.0, ""max"": 65.0, ""average"": 0.49, ""median"": 0.0, ""p95"": 0.0}}"

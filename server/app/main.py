@@ -8,7 +8,11 @@ from fastapi.exceptions import RequestValidationError
 from app.config import settings
 from app.database.connection import check_db_connection
 from app.api.v1 import (
-    auth, clients, agents, policies, jobs, backups, restore, storage, retention, activity, dashboard
+    auth, clients, agents, policies, jobs, backups, restore, storage, retention, activity, dashboard,
+    repositories, replication, security, alerts, dr, settings as settings_api,
+    security_events, fleet, incidents, integrity, simulations,
+    cluster, distributed_scheduler, fleet_bulk,
+    operations, capacity, observability_api, compliance_api, reports_api
 )
 
 # Structured application logging
@@ -109,6 +113,25 @@ app.include_router(storage.router, prefix=settings.API_V1_STR)
 app.include_router(retention.router, prefix=settings.API_V1_STR)
 app.include_router(activity.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
+app.include_router(repositories.router, prefix=settings.API_V1_STR)
+app.include_router(replication.router, prefix=settings.API_V1_STR)
+app.include_router(security.router, prefix=settings.API_V1_STR)
+app.include_router(alerts.router, prefix=settings.API_V1_STR)
+app.include_router(dr.router, prefix=settings.API_V1_STR)
+app.include_router(settings_api.router, prefix=settings.API_V1_STR)
+app.include_router(security_events.router, prefix=settings.API_V1_STR)
+app.include_router(fleet.router, prefix=settings.API_V1_STR)
+app.include_router(incidents.router, prefix=settings.API_V1_STR)
+app.include_router(integrity.router, prefix=settings.API_V1_STR)
+app.include_router(simulations.router, prefix=settings.API_V1_STR)
+app.include_router(cluster.router, prefix=settings.API_V1_STR)
+app.include_router(distributed_scheduler.router, prefix=settings.API_V1_STR)
+app.include_router(fleet_bulk.router, prefix=settings.API_V1_STR)
+app.include_router(operations.router, prefix=settings.API_V1_STR)
+app.include_router(capacity.router, prefix=settings.API_V1_STR)
+app.include_router(observability_api.router, prefix=settings.API_V1_STR)
+app.include_router(compliance_api.router, prefix=settings.API_V1_STR)
+app.include_router(reports_api.router, prefix=settings.API_V1_STR)
 
 
 @app.on_event("startup")

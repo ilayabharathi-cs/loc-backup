@@ -20,19 +20,41 @@ class BackendApiClient:
 
     def __init__(self, config: AgentConfig):
         self.config = config
-        self.base_url = config.server_url.rstrip("/")
         self.timeout = config.request_timeout_seconds
         self.max_retries = config.max_retries
         self.logger = get_logger()
+        from agent.src.security.credential_manager import AgentCredentialManager
+        self.credentials = AgentCredentialManager()
+
+        # Build list of candidate cluster endpoints for HA failover
+        endpoints = []
+        if getattr(config, "server_endpoints", None):
+            endpoints.extend([ep.strip().rstrip("/") for ep in config.server_endpoints if ep.strip()])
+        if config.server_url and config.server_url.strip().rstrip("/") not in endpoints:
+            endpoints.insert(0, config.server_url.strip().rstrip("/"))
+        if not endpoints:
+            endpoints = ["http://127.0.0.1:8000"]
+        self.endpoints = endpoints
+        self.current_endpoint_idx = 0
+        self.base_url = self.endpoints[0]
+
+    def get_active_endpoint(self) -> str:
+        """Returns the currently active cluster control plane endpoint."""
+        return self.endpoints[self.current_endpoint_idx]
 
     def _make_request(self, method: str, endpoint: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Perform HTTP request with retry and exponential backoff."""
-        url = f"{self.base_url}/api/v1{endpoint}"
+        """Perform HTTP request with retry, exponential backoff, and multi-endpoint failover."""
+        import uuid
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": f"RetroVault-Agent/{self.config.agent_version}",
+            "X-RetroVault-Timestamp": str(int(time.time())),
+            "X-RetroVault-Nonce": uuid.uuid4().hex,
         }
+        token = self.credentials.get_auth_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
         data_bytes = None
         if payload is not None:
@@ -43,11 +65,14 @@ class BackendApiClient:
 
         while attempt < self.max_retries:
             attempt += 1
+            current_endpoint = self.endpoints[self.current_endpoint_idx]
+            url = f"{current_endpoint}/api/v1{endpoint}"
             try:
                 req = Request(url, data=data_bytes, headers=headers, method=method)
                 with urlopen(req, timeout=self.timeout) as resp:
                     resp_body = resp.read().decode("utf-8")
                     result = json.loads(resp_body) if resp_body else {}
+                    self.base_url = current_endpoint
                     return result
             except HTTPError as e:
                 err_body = ""
@@ -57,16 +82,28 @@ class BackendApiClient:
                     pass
 
                 self.logger.warning(
-                    f"HTTP {e.code} on {method} {endpoint} (attempt {attempt}/{self.max_retries}): {err_body}"
+                    f"HTTP {e.code} on {method} {endpoint} at {current_endpoint} (attempt {attempt}/{self.max_retries}): {err_body}"
                 )
                 # Client errors (400, 404, 422) should not loop indefinitely if permanent
                 if e.code in (400, 404, 422) and attempt >= 2:
                     raise ApiClientError(f"HTTP {e.code}: {err_body}")
 
+                # If server error or cluster node unavailable, failover to next endpoint
+                if len(self.endpoints) > 1 and e.code in (500, 502, 503, 504):
+                    self.current_endpoint_idx = (self.current_endpoint_idx + 1) % len(self.endpoints)
+                    self.logger.warning(
+                        f"Failing over to next cluster endpoint: {self.endpoints[self.current_endpoint_idx]}"
+                    )
+
             except (URLError, TimeoutError, ConnectionError, OSError) as e:
                 self.logger.warning(
-                    f"Connection failure on {method} {endpoint} (attempt {attempt}/{self.max_retries}): {e}"
+                    f"Connection failure on {method} {endpoint} at {current_endpoint} (attempt {attempt}/{self.max_retries}): {e}"
                 )
+                if len(self.endpoints) > 1:
+                    self.current_endpoint_idx = (self.current_endpoint_idx + 1) % len(self.endpoints)
+                    self.logger.warning(
+                        f"Failing over to next cluster endpoint: {self.endpoints[self.current_endpoint_idx]}"
+                    )
 
             if attempt < self.max_retries:
                 # Exponential backoff with random jitter (0.1 to 0.5s)
@@ -74,7 +111,7 @@ class BackendApiClient:
                 time.sleep(sleep_time)
                 backoff = min(backoff * 2.0, 30.0)
 
-        raise ApiClientError(f"Failed to communicate with {url} after {self.max_retries} attempts.")
+        raise ApiClientError(f"Failed to communicate with cluster after {self.max_retries} attempts.")
 
     def register_agent(self, sys_info: Dict[str, Any]) -> Dict[str, Any]:
         """Register agent with the backend via POST /api/v1/agents/register."""
@@ -248,4 +285,27 @@ class BackendApiClient:
         if res.get("success"):
             return res.get("data", {})
         raise ApiClientError(f"Failed to renew lease: {res.get('error')}")
+
+    def rotate_credentials(self, client_id: str, reason: str = "") -> Dict[str, Any]:
+        """Request new credential token from server, stage it locally, and confirm."""
+        res = self._make_request("POST", f"/agents/{client_id}/rotate-credentials")
+        if not res.get("success"):
+            raise ApiClientError(f"Credential rotation request failed: {res.get('error')}")
+        data = res.get("data", {})
+        new_token = data.get("new_token")
+        cred_id = data.get("credential_id")
+
+        if new_token and cred_id:
+            self.credentials.set_pending_token(new_token, cred_id)
+
+            # Confirm with server
+            confirm_res = self._make_request("POST", f"/agents/{client_id}/confirm-credentials", {"credential_id": cred_id})
+            if confirm_res.get("success"):
+                self.credentials.confirm_pending_token()
+                return confirm_res.get("data", {})
+            else:
+                raise ApiClientError(f"Failed to confirm new credentials: {confirm_res.get('error')}")
+
+        return data
+
 

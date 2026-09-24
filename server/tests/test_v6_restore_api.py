@@ -284,7 +284,8 @@ def test_path_safety_and_traversal_prevention(auth_headers, test_setup):
     }
     res = client.post("/api/v1/restore/preview", json=payload_traversal, headers=auth_headers)
     assert res.status_code == 400
-    assert "traversal" in res.json()["detail"].lower()
+    msg1 = res.json().get("detail") or res.json().get("error", {}).get("message", "")
+    assert "traversal" in msg1.lower()
 
     # Reserved device name
     payload_reserved = {
@@ -295,7 +296,8 @@ def test_path_safety_and_traversal_prevention(auth_headers, test_setup):
     }
     res_res = client.post("/api/v1/restore/preview", json=payload_reserved, headers=auth_headers)
     assert res_res.status_code == 400
-    assert "reserved" in res_res.json()["detail"].lower()
+    msg2 = res_res.json().get("detail") or res_res.json().get("error", {}).get("message", "")
+    assert "reserved" in msg2.lower()
 
 
 def test_cross_client_restore_safeguard(auth_headers, test_setup):
@@ -453,7 +455,8 @@ def test_corrupted_storage_object_rejection(auth_headers, test_setup):
         res = client.post("/api/v1/restore/jobs", json=payload, headers=auth_headers)
         # Should fail safely
         assert res.status_code == 400
-        assert "SOURCE_OBJECT_CORRUPTED" in res.json()["detail"]
+        msg_corrupt = res.json().get("detail") or res.json().get("error", {}).get("message", "")
+        assert "SOURCE_OBJECT_CORRUPTED" in msg_corrupt
 
 
 def test_active_restore_gc_protection(auth_headers, test_setup):

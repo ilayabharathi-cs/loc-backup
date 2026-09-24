@@ -26,6 +26,13 @@ class RecoveryPoint(Base):
     expires_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     retention_tier: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # DAILY, WEEKLY, MONTHLY, YEARLY, KEEP_LAST
 
+    # V8 Advanced Protection & Security Hold
+    protection_state: Mapped[str] = mapped_column(String(30), default="NORMAL", nullable=False, index=True)  # NORMAL, PROTECTED, RETENTION_LOCKED, SECURITY_HOLD, QUARANTINED, EXPIRED, DELETED
+    security_hold_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    protected_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    protected_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    protection_created_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     client = relationship("Client", back_populates="recovery_points")

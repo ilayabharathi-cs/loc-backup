@@ -163,3 +163,119 @@ def get_agent_config(client_id: str, db: Session = Depends(get_db)):
         data=config,
         message="Agent configuration retrieved"
     )
+
+
+@router.post("/{client_id}/rotate-credentials", response_model=ApiResponse[dict])
+def rotate_agent_credentials(client_id: str, db: Session = Depends(get_db)):
+    """Issue a new credential token for an agent. Status remains PENDING_CONFIRMATION until confirmed."""
+    import secrets
+    import hashlib
+    from app.models.security_models import AgentCredential
+
+    client = None
+    if client_id.isdigit():
+        client = db.query(Client).filter(Client.id == int(client_id)).first()
+    if not client:
+        client = db.query(Client).filter(Client.client_id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+
+    new_token = f"rv_token_{secrets.token_urlsafe(32)}"
+    token_hash = hashlib.sha256(new_token.encode("utf-8")).hexdigest()
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    cred = AgentCredential(
+        client_id=client.id,
+        token_hash=token_hash,
+        status="PENDING_CONFIRMATION",
+        issued_at=now,
+        expires_at=now + datetime.timedelta(days=90),
+        rotation_reason="Administrator or Agent initiated credential rotation"
+    )
+    db.add(cred)
+    db.commit()
+    db.refresh(cred)
+
+    log_audit_event(
+        db=db,
+        action="AGENT_CREDENTIAL_ROTATED",
+        resource_type="agent",
+        resource_id=client.client_id,
+        client_id=client.id,
+        details=f"Issued new credential token for client {client.client_id}"
+    )
+
+    return ApiResponse(
+        success=True,
+        data={
+            "client_id": client.client_id,
+            "device_id": client.device_id,
+            "new_token": new_token,
+            "credential_id": cred.id,
+            "status": cred.status,
+            "expires_at": cred.expires_at.isoformat() if cred.expires_at else None
+        },
+        message="New agent credential token issued. Agent must confirm receipt to finalize rotation."
+    )
+
+
+@router.post("/{client_id}/confirm-credentials", response_model=ApiResponse[dict])
+def confirm_agent_credentials(client_id: str, credential_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Confirm new credential token and revoke old credentials."""
+    from app.models.security_models import AgentCredential
+
+    client = None
+    if client_id.isdigit():
+        client = db.query(Client).filter(Client.id == int(client_id)).first()
+    if not client:
+        client = db.query(Client).filter(Client.client_id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # Find the pending credential
+    query = db.query(AgentCredential).filter(AgentCredential.client_id == client.id)
+    if credential_id:
+        target_cred = query.filter(AgentCredential.id == credential_id).first()
+    else:
+        target_cred = query.filter(AgentCredential.status == "PENDING_CONFIRMATION").order_by(AgentCredential.issued_at.desc()).first()
+
+    if not target_cred:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No pending credentials found for this client")
+
+    # Invalidate old credentials
+    old_creds = db.query(AgentCredential).filter(
+        AgentCredential.client_id == client.id,
+        AgentCredential.id != target_cred.id,
+        AgentCredential.status == "ACTIVE"
+    ).all()
+    for c in old_creds:
+        c.status = "REVOKED"
+        c.revoked_at = now
+
+    # Activate new credential
+    target_cred.status = "ACTIVE"
+    target_cred.confirmed_at = now
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        action="AGENT_CREDENTIAL_CONFIRMED",
+        resource_type="agent",
+        resource_id=client.client_id,
+        client_id=client.id,
+        details=f"Agent {client.client_id} confirmed new credential token #{target_cred.id}. Revoked {len(old_creds)} old credentials."
+    )
+
+    return ApiResponse(
+        success=True,
+        data={
+            "client_id": client.client_id,
+            "credential_id": target_cred.id,
+            "status": "ACTIVE",
+            "revoked_count": len(old_creds)
+        },
+        message="Agent credential rotation confirmed and activated"
+    )
+

@@ -18,6 +18,39 @@ from app.models.run_event import RunEvent
 from app.models.storage_object import StorageObject
 from app.models.retention_policy import RetentionPolicy, RetentionEvaluation
 from app.models.garbage_collection import GarbageCollectionJob, GarbageCollectionItem
+from app.models.replication import ReplicationJob, ReplicationItem, ReplicationCheckpoint
+from app.models.alert import AlertRule, Alert, NotificationChannel, NotificationDelivery
+from app.models.security_models import AgentCredential, MfaSetting, SystemSetting, DrTest
+from app.models.security_v8_models import (
+    SecurityEvent,
+    SecurityIncident,
+    SecurityProfile,
+    ClientGroup,
+    PolicyVersion,
+    ConfigurationDrift,
+    IntegrityScan,
+    DeletionGuard,
+    SecuritySimulation
+)
+from app.models.cluster_v9_models import (
+    ClusterNode,
+    ClusterLease,
+    DistributedJob,
+    DistributedLock,
+    ClusterEvent,
+    BulkOperation
+)
+from app.models.observability_v10_models import (
+    MetricSample,
+    HealthCheck,
+    OperationalAlert,
+    OperationalIncident,
+    CapacitySnapshot,
+    CapacityForecast,
+    ComplianceEvidence,
+    ComplianceReport,
+    ReportExecution
+)
 
 __all__ = [
     "Base",
@@ -42,5 +75,41 @@ __all__ = [
     "RetentionPolicy",
     "RetentionEvaluation",
     "GarbageCollectionJob",
-    "GarbageCollectionItem"
+    "GarbageCollectionItem",
+    "ReplicationJob",
+    "ReplicationItem",
+    "ReplicationCheckpoint",
+    "AlertRule",
+    "Alert",
+    "NotificationChannel",
+    "NotificationDelivery",
+    "AgentCredential",
+    "MfaSetting",
+    "SystemSetting",
+    "DrTest",
+    "SecurityEvent",
+    "SecurityIncident",
+    "SecurityProfile",
+    "ClientGroup",
+    "PolicyVersion",
+    "ConfigurationDrift",
+    "IntegrityScan",
+    "DeletionGuard",
+    "SecuritySimulation",
+    "ClusterNode",
+    "ClusterLease",
+    "DistributedJob",
+    "DistributedLock",
+    "ClusterEvent",
+    "BulkOperation",
+    "MetricSample",
+    "HealthCheck",
+    "OperationalAlert",
+    "OperationalIncident",
+    "CapacitySnapshot",
+    "CapacityForecast",
+    "ComplianceEvidence",
+    "ComplianceReport",
+    "ReportExecution"
 ]
+

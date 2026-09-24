@@ -10,6 +10,17 @@ import { StoragePage } from './pages/StoragePage';
 import { PoliciesPage } from './pages/PoliciesPage';
 import { ActivityPage } from './pages/ActivityPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ReplicationPage } from './pages/ReplicationPage';
+import { TopologyPage } from './pages/TopologyPage';
+import { SecurityPage } from './pages/SecurityPage';
+import { AlertsPage } from './pages/AlertsPage';
+import { ClusterPage } from './pages/ClusterPage';
+import { SchedulerPage } from './pages/SchedulerPage';
+import { OperationsPage } from './pages/OperationsPage';
+import { CapacityPage } from './pages/CapacityPage';
+import { ObservabilityPage } from './pages/ObservabilityPage';
+import { IncidentsPage } from './pages/IncidentsPage';
+import { ReportsPage } from './pages/ReportsPage';
 
 export const App: React.FC = () => {
   return (
@@ -19,11 +30,22 @@ export const App: React.FC = () => {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="operations" element={<OperationsPage />} />
+            <Route path="operations/incidents" element={<IncidentsPage />} />
+            <Route path="capacity" element={<CapacityPage />} />
+            <Route path="observability" element={<ObservabilityPage />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientsPage />} />
             <Route path="jobs" element={<JobsPage />} />
             <Route path="restore" element={<RestorePage />} />
             <Route path="storage" element={<StoragePage />} />
+            <Route path="storage/topology" element={<TopologyPage />} />
+            <Route path="replication" element={<ReplicationPage />} />
+            <Route path="security" element={<SecurityPage />} />
+            <Route path="alerts" element={<AlertsPage />} />
+            <Route path="cluster" element={<ClusterPage />} />
+            <Route path="scheduler" element={<SchedulerPage />} />
             <Route path="policies" element={<PoliciesPage />} />
             <Route path="activity" element={<ActivityPage />} />
             <Route path="settings" element={<SettingsPage />} />
