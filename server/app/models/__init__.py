@@ -66,6 +66,15 @@ from app.models.workload_v11_models import (
     RemediationAction,
     DependencyRelation
 )
+from app.models.storage_tier_v12_models import (
+    CloudCredential,
+    StorageTier,
+    CloudOffloadedObject
+)
+from app.models.virtual_recovery_v12_models import (
+    VirtualRecoverySession,
+    VirtualRecoveryHydrationItem
+)
 
 __all__ = [
     "Base",
@@ -138,6 +147,13 @@ __all__ = [
     "PolicyLifecycle",
     "PolicyApproval",
     "RemediationAction",
-    "DependencyRelation"
+    "DependencyRelation",
+    "CloudCredential",
+    "StorageTier",
+    "CloudOffloadedObject",
+    "VirtualRecoverySession",
+    "VirtualRecoveryHydrationItem"
 ]
+
+
 

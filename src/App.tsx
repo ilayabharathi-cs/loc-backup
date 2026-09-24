@@ -32,6 +32,9 @@ import { DRRunbooksPage } from './pages/DRRunbooksPage';
 import { DRRunbookDetailsPage } from './pages/DRRunbookDetailsPage';
 import { DRExecutionPage } from './pages/DRExecutionPage';
 import { InstantRecoveryPage } from './pages/InstantRecoveryPage';
+import { CloudStoragePage } from './pages/CloudStoragePage';
+import { VirtualRecoveryPage } from './pages/VirtualRecoveryPage';
+import { DisasterRecoveryPage } from './pages/DisasterRecoveryPage';
 
 export const App: React.FC = () => {
   return (
@@ -41,6 +44,9 @@ export const App: React.FC = () => {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="cloud-storage" element={<CloudStoragePage />} />
+            <Route path="virtual-recovery" element={<VirtualRecoveryPage />} />
+            <Route path="dr" element={<DisasterRecoveryPage />} />
             <Route path="workloads" element={<WorkloadsPage />} />
             <Route path="recovery-verification" element={<RecoveryVerificationPage />} />
             <Route path="recovery-readiness" element={<RecoveryReadinessPage />} />

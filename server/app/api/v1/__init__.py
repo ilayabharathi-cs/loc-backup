@@ -5,7 +5,7 @@ from app.api.v1 import (
     cluster, distributed_scheduler, fleet_bulk,
     operations, capacity, observability_api, compliance_api, reports_api,
     workloads, recovery_verification, recovery_readiness, backup_chains,
-    policy_orchestration, remediations, dependencies
+    policy_orchestration, remediations, dependencies, storage_tiers, virtual_recovery
 )
 
 __all__ = [
@@ -15,5 +15,7 @@ __all__ = [
     "cluster", "distributed_scheduler", "fleet_bulk",
     "operations", "capacity", "observability_api", "compliance_api", "reports_api",
     "workloads", "recovery_verification", "recovery_readiness", "backup_chains",
-    "policy_orchestration", "remediations", "dependencies"
+    "policy_orchestration", "remediations", "dependencies", "storage_tiers", "virtual_recovery"
 ]
+
+
