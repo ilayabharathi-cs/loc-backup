@@ -26,6 +26,12 @@ import { RecoveryVerificationPage } from './pages/RecoveryVerificationPage';
 import { RecoveryReadinessPage } from './pages/RecoveryReadinessPage';
 import { PolicyOrchestrationPage } from './pages/PolicyOrchestrationPage';
 import { ApplicationRestorePage } from './pages/ApplicationRestorePage';
+import { StorageTiersPage } from './pages/StorageTiersPage';
+import { CloudCredentialsPage } from './pages/CloudCredentialsPage';
+import { DRRunbooksPage } from './pages/DRRunbooksPage';
+import { DRRunbookDetailsPage } from './pages/DRRunbookDetailsPage';
+import { DRExecutionPage } from './pages/DRExecutionPage';
+import { InstantRecoveryPage } from './pages/InstantRecoveryPage';
 
 export const App: React.FC = () => {
   return (
@@ -50,7 +56,13 @@ export const App: React.FC = () => {
             <Route path="jobs" element={<JobsPage />} />
             <Route path="restore" element={<RestorePage />} />
             <Route path="storage" element={<StoragePage />} />
+            <Route path="storage/tiers" element={<StorageTiersPage />} />
+            <Route path="storage/credentials" element={<CloudCredentialsPage />} />
             <Route path="storage/topology" element={<TopologyPage />} />
+            <Route path="dr/runbooks" element={<DRRunbooksPage />} />
+            <Route path="dr/runbooks/:id" element={<DRRunbookDetailsPage />} />
+            <Route path="dr/executions/:id" element={<DRExecutionPage />} />
+            <Route path="recovery/instant-mounts" element={<InstantRecoveryPage />} />
             <Route path="replication" element={<ReplicationPage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route path="alerts" element={<AlertsPage />} />

@@ -6,7 +6,7 @@ export interface TabItem {
   id: string;
   label: string;
   icon?: ReactNode;
-  content: ReactNode;
+  content?: ReactNode;
 }
 
 export interface WinTabsProps {
@@ -55,9 +55,12 @@ export const WinTabs: React.FC<WinTabsProps> = ({
       </div>
 
       {/* Tab Content Panel */}
-      <div className="win-outset p-3 bg-[#c0c0c0] relative z-0">
-        {currentTab?.content}
-      </div>
+      {currentTab?.content && (
+        <div className="win-outset p-3 bg-[#c0c0c0] relative z-0">
+          {currentTab.content}
+        </div>
+      )}
     </div>
   );
 };
+
