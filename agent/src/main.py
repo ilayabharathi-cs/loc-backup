@@ -6,10 +6,19 @@ import json
 import argparse
 import signal
 
-# Add repository root to sys.path so 'agent.src' package imports work cleanly
-sys_path_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if sys_path_root not in sys.path:
-    sys.path.insert(0, sys_path_root)
+# Add repository and agent root to sys.path so 'agent.src' package imports work cleanly in any VM/PC
+agent_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+parent_root = os.path.dirname(agent_root)
+for p in (parent_root, agent_root):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+# If folder was renamed in VM, ensure 'agent' package alias exists
+if "agent" not in sys.modules and os.path.basename(agent_root) != "agent":
+    import types
+    _mod = types.ModuleType("agent")
+    _mod.__path__ = [agent_root]
+    sys.modules["agent"] = _mod
 
 from agent.src.config import load_config
 from agent.src.identity import DeviceIdentity

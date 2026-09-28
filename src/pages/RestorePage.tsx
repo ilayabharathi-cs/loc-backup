@@ -31,7 +31,7 @@ export const RestorePage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Step 1: Client & Recovery Point
-  const [selectedSourceClientId, setSelectedSourceClientId] = useState<string>('PC-001');
+  const [selectedSourceClientId, setSelectedSourceClientId] = useState<string>('');
   const [recoveryPoints, setRecoveryPoints] = useState<RecoveryPointApiData[]>([]);
   const [selectedPointId, setSelectedPointId] = useState<number | null>(null);
   const [loadingPoints, setLoadingPoints] = useState<boolean>(false);
@@ -48,11 +48,19 @@ export const RestorePage: React.FC = () => {
   // Step 3: Destination & Policies
   const [destinationType, setDestinationType] = useState<'ORIGINAL' | 'ALTERNATE'>('ALTERNATE');
   const [alternatePath, setAlternatePath] = useState<string>('C:\\Restored');
-  const [selectedTargetClientId, setSelectedTargetClientId] = useState<string>('PC-001');
+  const [selectedTargetClientId, setSelectedTargetClientId] = useState<string>('');
   const [conflictPolicy, setConflictPolicy] = useState<'OVERWRITE' | 'SKIP' | 'RENAME' | 'FAIL'>('OVERWRITE');
   const [metadataMode, setMetadataMode] = useState<'BASIC' | 'NONE' | 'FULL'>('BASIC');
   const [hasAcknowledgedCrossClient, setHasAcknowledgedCrossClient] = useState<boolean>(false);
   const [showCrossClientWarning, setShowCrossClientWarning] = useState<boolean>(false);
+
+  // Sync selected clients with enrolled clients
+  useEffect(() => {
+    if (!selectedSourceClientId && clients.length > 0) {
+      setSelectedSourceClientId(clients[0].id);
+      setSelectedTargetClientId(clients[0].id);
+    }
+  }, [clients, selectedSourceClientId]);
 
   // Step 4: Preview
   const [previewData, setPreviewData] = useState<RestorePreviewData | null>(null);
@@ -71,6 +79,12 @@ export const RestorePage: React.FC = () => {
 
   // 1. Fetch Recovery Points on client change
   useEffect(() => {
+    if (!selectedSourceClientId) {
+      setRecoveryPoints([]);
+      setSelectedPointId(null);
+      return;
+    }
+
     const fetchPoints = async () => {
       setLoadingPoints(true);
       try {
@@ -79,28 +93,12 @@ export const RestorePage: React.FC = () => {
           setRecoveryPoints(res.data);
           setSelectedPointId(res.data[0].id);
         } else {
-          // Fallback points
-          const fallback: RecoveryPointApiData[] = [
-            {
-              id: 1,
-              client_id: 1,
-              client_identifier: selectedSourceClientId,
-              client_hostname: 'DESKTOP-ALPHA',
-              backup_run_id: 101,
-              backup_type: 'full',
-              timestamp: new Date().toISOString(),
-              files_count: 142,
-              total_size_bytes: 48200000,
-              status: 'valid',
-              created_at: new Date().toISOString()
-            }
-          ];
-          setRecoveryPoints(fallback);
-          setSelectedPointId(1);
+          setRecoveryPoints([]);
+          setSelectedPointId(null);
         }
       } catch {
-        // Fallback
         setRecoveryPoints([]);
+        setSelectedPointId(null);
       } finally {
         setLoadingPoints(false);
       }

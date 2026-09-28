@@ -163,32 +163,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
 
-      // 2. Fetch Clients
+      // 2. Fetch Clients (Real Enrolled Devices)
       const clientsRes = await clientsApi.list();
-      if (clientsRes.success && Array.isArray(clientsRes.data) && clientsRes.data.length > 0) {
-        const mappedClients: Client[] = clientsRes.data.map((c: ClientApiData, idx: number) => {
-          const initialMatch = INITIAL_CLIENTS.find(ic => ic.id === c.client_id) || INITIAL_CLIENTS[idx % INITIAL_CLIENTS.length];
+      if (clientsRes.success && Array.isArray(clientsRes.data)) {
+        const mappedClients: Client[] = clientsRes.data.map((c: ClientApiData) => {
           const statusUpper = c.status === 'active' ? 'ONLINE' : c.status === 'offline' ? 'OFFLINE' : c.status === 'disabled' ? 'WARNING' : 'ONLINE';
 
           return {
             id: c.client_id,
             hostname: c.hostname,
-            user: initialMatch ? initialMatch.user : `User-${c.client_id}`,
+            user: c.hostname,
             os: c.os,
             agentVersion: c.agent_version,
             ipAddress: c.ip_address,
-            cpu: initialMatch ? initialMatch.cpu : 'Intel Core i7 (8 Cores)',
-            ram: initialMatch ? initialMatch.ram : '32 GB RAM',
+            cpu: 'Detected CPU',
+            ram: 'Detected RAM',
             status: statusUpper,
             lastSeen: c.last_seen ? new Date(c.last_seen).toLocaleTimeString() : 'Recently',
-            lastBackup: initialMatch ? initialMatch.lastBackup : '20:12:00',
-            rpoSeconds: initialMatch ? initialMatch.rpoSeconds : 45,
-            storageConsumedGb: initialMatch ? initialMatch.storageConsumedGb : 120.0,
-            policyId: initialMatch ? initialMatch.policyId : 'POL-001',
-            policyName: initialMatch ? initialMatch.policyName : 'Windows User Data',
-            universalPaths: initialMatch ? initialMatch.universalPaths : ['%USERPROFILE%\\Documents', '%USERPROFILE%\\Desktop'],
-            customPaths: initialMatch ? initialMatch.customPaths : [],
-            excludedPaths: initialMatch ? initialMatch.excludedPaths : ['%TEMP%', '*.tmp']
+            lastBackup: 'Never',
+            rpoSeconds: 60,
+            storageConsumedGb: 0.0,
+            policyId: 'POL-001',
+            policyName: 'Windows User Data',
+            universalPaths: ['%USERPROFILE%\\Documents', '%USERPROFILE%\\Desktop'],
+            customPaths: [],
+            excludedPaths: ['%TEMP%', '*.tmp']
           };
         });
         setClients(mappedClients);
@@ -222,7 +221,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // 4. Fetch Jobs
       const jobsRes = await jobsApi.list();
-      if (jobsRes.success && Array.isArray(jobsRes.data) && jobsRes.data.length > 0) {
+      if (jobsRes.success && Array.isArray(jobsRes.data)) {
         const mappedJobs: BackupJob[] = jobsRes.data.map((j: JobApiData) => ({
           id: j.job_id,
           clientId: j.client_identifier || `PC-${j.client_id}`,
@@ -230,14 +229,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           policyName: j.policy_name || 'Windows User Data',
           backupType: 'Incremental',
           source: '%USERPROFILE%\\Documents, Desktop',
-          started: j.started_at ? new Date(j.started_at).toLocaleTimeString() : '20:10',
+          started: j.started_at ? new Date(j.started_at).toLocaleTimeString() : '',
           completed: j.completed_at ? new Date(j.completed_at).toLocaleTimeString() : null,
-          duration: j.completed_at ? '00:02:15' : 'Active',
-          dataProcessedMb: j.data_processed_mb || 412.3,
+          duration: j.completed_at ? 'Completed' : 'Active',
+          dataProcessedMb: j.data_processed_mb || 0,
           status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : 'RUNNING',
-          progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 45),
+          progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 0),
           changeDetection: 'USN Journal (NTFS)',
-          transferSpeedMbps: 92.5
+          transferSpeedMbps: 0
         }));
         setJobs(mappedJobs);
       }
@@ -251,18 +250,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           totalTb: s.total_tb,
           usedTb: s.used_tb,
           freeTb: s.free_tb,
-          diskHealth: s.disk_health,
-          backupObjectsCount: 142850,
-          recoveryPointsCount: 4892,
-          dedupRatio: s.dedup_ratio,
-          compressionRatio: s.compression_ratio,
-          lastVerification: '22 Sep 2026 18:00:00 (PASSED)'
+          diskHealth: s.disk_health || 'ONLINE',
+          backupObjectsCount: 0,
+          recoveryPointsCount: 0,
+          dedupRatio: s.dedup_ratio || 1.0,
+          compressionRatio: s.compression_ratio || 1.0,
+          lastVerification: 'Active'
         });
       }
 
       // 6. Fetch Activity Logs
       const activityRes = await activityApi.list();
-      if (activityRes.success && Array.isArray(activityRes.data) && activityRes.data.length > 0) {
+      if (activityRes.success && Array.isArray(activityRes.data)) {
         const mappedLogs: ActivityLog[] = activityRes.data.map((a: AuditLogApiData) => ({
           id: `LOG-${a.id}`,
           time: new Date(a.created_at).toLocaleTimeString(),
@@ -277,7 +276,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setBackendConnected(true);
     } catch {
-      // Backend not currently reachable; keep fallback seed data active
+      // Backend not currently reachable
       setBackendConnected(false);
     }
   };
