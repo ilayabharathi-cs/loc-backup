@@ -11,8 +11,10 @@ from app.schemas.common import ApiResponse
 from app.security.dependencies import get_optional_current_user
 
 router = APIRouter(prefix="/activity", tags=["Audit & Activity Logs"])
+audit_router = APIRouter(prefix="/audit-logs", tags=["Audit & Activity Logs"])
 
 @router.get("", response_model=ApiResponse[List[AuditLogResponse]])
+@audit_router.get("", response_model=ApiResponse[List[AuditLogResponse]])
 def list_activity(
     client: Optional[str] = Query(None, description="Filter by client_id or client identifier"),
     severity: Optional[str] = Query(None, description="Filter by severity (INFO, WARNING, ERROR)"),

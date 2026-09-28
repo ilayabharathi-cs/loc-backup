@@ -220,6 +220,21 @@ export const getObservabilityOverview = async (window: string = '24h'): Promise<
   return res.data;
 };
 
+export const pruneTelemetry = async (params?: {
+  raw_metric_retention_days?: number;
+  aggregate_retention_days?: number;
+  alert_retention_days?: number;
+  incident_retention_days?: number;
+}): Promise<any> => {
+  const res = await apiClient.post('/observability/prune', null, { params });
+  return res.data;
+};
+
+export const downsampleTelemetry = async (hoursBack: number = 24): Promise<any> => {
+  const res = await apiClient.post('/observability/downsample', null, { params: { hours_back: hoursBack } });
+  return res.data;
+};
+
 // --- Compliance & Reports API Calls ---
 export const getComplianceSummary = async (): Promise<ComplianceSummary> => {
   const res = await apiClient.get<ComplianceSummary>(`/compliance/`);

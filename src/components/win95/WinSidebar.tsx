@@ -8,10 +8,7 @@ import {
   ShieldCheckIcon, 
   ActivityLogIcon, 
   SettingsWrenchIcon, 
-  ServerIcon,
-  CloudStorageIcon,
-  RunbookIcon,
-  InstantMountIcon
+  ServerIcon
 } from './WinIcons';
 import { useApp } from '../../context/AppContext';
 
@@ -40,12 +37,40 @@ export const WinSidebar: React.FC = () => {
       icon: <ServerIcon size={18} />
     },
     {
-      id: 'workloads',
-      label: 'Workloads',
-      path: '/workloads',
-      icon: <ServerIcon size={18} />,
-      badge: 'V11',
-      badgeColor: '#800080'
+      id: 'clients',
+      label: 'Clients & Agents',
+      path: '/clients',
+      icon: <ComputerIcon size={18} />,
+      badge: `${clients.length}`,
+      badgeColor: offlineClientsCount > 0 ? '#aa0000' : '#000080'
+    },
+    {
+      id: 'jobs',
+      label: 'Backup Jobs',
+      path: '/jobs',
+      icon: <BackupTapeIcon size={18} />,
+      badge: runningJobsCount > 0 ? `${runningJobsCount} active` : undefined,
+      badgeColor: '#0055ff'
+    },
+    {
+      id: 'restore',
+      label: 'Recovery / Restore',
+      path: '/restore',
+      icon: <RestoreArrowIcon size={18} />
+    },
+    {
+      id: 'storage',
+      label: 'Local CAS Storage',
+      path: '/storage',
+      icon: <HardDriveIcon size={18} />
+    },
+    {
+      id: 'dr',
+      label: 'Disaster Recovery',
+      path: '/dr',
+      icon: <ShieldCheckIcon size={18} />,
+      badge: 'Local DR',
+      badgeColor: '#008000'
     },
     {
       id: 'verification',
@@ -60,34 +85,26 @@ export const WinSidebar: React.FC = () => {
       icon: <ActivityLogIcon size={18} />
     },
     {
-      id: 'policy-gov',
-      label: 'Policy Governance',
-      path: '/policy-orchestration',
-      icon: <SettingsWrenchIcon size={18} />
+      id: 'workloads',
+      label: 'Workloads',
+      path: '/workloads',
+      icon: <ServerIcon size={18} />
     },
     {
-      id: 'app-restore',
-      label: 'App Restore Wizard',
-      path: '/application-restore',
-      icon: <RestoreArrowIcon size={18} />
+      id: 'policies',
+      label: 'Backup Policies',
+      path: '/policies',
+      icon: <ShieldCheckIcon size={18} />
     },
     {
       id: 'operations',
       label: 'Operations',
       path: '/operations',
-      icon: <ActivityLogIcon size={18} />,
-      badge: 'V10',
-      badgeColor: '#000080'
-    },
-    {
-      id: 'incidents',
-      label: 'Incidents',
-      path: '/operations/incidents',
-      icon: <ShieldCheckIcon size={18} />
+      icon: <ActivityLogIcon size={18} />
     },
     {
       id: 'capacity',
-      label: 'Capacity',
+      label: 'Capacity Planning',
       path: '/capacity',
       icon: <HardDriveIcon size={18} />
     },
@@ -106,99 +123,6 @@ export const WinSidebar: React.FC = () => {
       badgeColor: '#008000'
     },
     {
-      id: 'clients',
-      label: 'Clients',
-      path: '/clients',
-      icon: <ComputerIcon size={18} />,
-      badge: `${clients.length}`,
-      badgeColor: offlineClientsCount > 0 ? '#aa0000' : '#000080'
-    },
-    {
-      id: 'jobs',
-      label: 'Backup Jobs',
-      path: '/jobs',
-      icon: <BackupTapeIcon size={18} />,
-      badge: runningJobsCount > 0 ? `${runningJobsCount} active` : undefined,
-      badgeColor: '#0055ff'
-    },
-    {
-      id: 'restore',
-      label: 'Recovery',
-      path: '/restore',
-      icon: <RestoreArrowIcon size={18} />
-    },
-    {
-      id: 'virtual-recovery',
-      label: 'Virtual Recovery',
-      path: '/virtual-recovery',
-      icon: <RestoreArrowIcon size={18} />,
-      badge: 'IVR',
-      badgeColor: '#000080'
-    },
-    {
-      id: 'instant-mounts',
-      label: 'Instant Recovery',
-      path: '/recovery/instant-mounts',
-      icon: <InstantMountIcon size={18} />,
-      badge: 'V12',
-      badgeColor: '#800080'
-    },
-    {
-      id: 'dr',
-      label: 'Disaster Recovery',
-      path: '/dr',
-      icon: <ShieldCheckIcon size={18} />,
-      badge: 'DR',
-      badgeColor: '#aa0000'
-    },
-    {
-      id: 'dr-runbooks',
-      label: 'DR Runbooks',
-      path: '/dr/runbooks',
-      icon: <RunbookIcon size={18} />,
-      badge: 'V12',
-      badgeColor: '#b22222'
-    },
-    {
-      id: 'storage',
-      label: 'Storage',
-      path: '/storage',
-      icon: <HardDriveIcon size={18} />,
-      badge: '2.4 TB'
-    },
-    {
-      id: 'cloud-storage',
-      label: 'Cloud Storage',
-      path: '/cloud-storage',
-      icon: <HardDriveIcon size={18} />,
-      badge: 'V12',
-      badgeColor: '#008080'
-    },
-    {
-      id: 'storage-tiers',
-      label: 'Storage Tiers',
-      path: '/storage/tiers',
-      icon: <CloudStorageIcon size={18} />,
-      badge: 'V12',
-      badgeColor: '#008080'
-    },
-    {
-      id: 'cloud-credentials',
-      label: 'Cloud Credentials',
-      path: '/storage/credentials',
-      icon: <CloudStorageIcon size={18} />,
-      badge: 'V12',
-      badgeColor: '#008080'
-    },
-    {
-      id: 'replication',
-      label: 'Replication',
-      path: '/replication',
-      icon: <BackupTapeIcon size={18} />,
-      badge: '3-2-1',
-      badgeColor: '#008080'
-    },
-    {
       id: 'alerts',
       label: 'Alerts',
       path: '/alerts',
@@ -206,14 +130,8 @@ export const WinSidebar: React.FC = () => {
     },
     {
       id: 'security',
-      label: 'Security & MFA',
+      label: 'Security & Access',
       path: '/security',
-      icon: <ShieldCheckIcon size={18} />
-    },
-    {
-      id: 'policies',
-      label: 'Policies',
-      path: '/policies',
       icon: <ShieldCheckIcon size={18} />
     },
     {
@@ -221,22 +139,6 @@ export const WinSidebar: React.FC = () => {
       label: 'Activity Log',
       path: '/activity',
       icon: <ActivityLogIcon size={18} />
-    },
-    {
-      id: 'cluster',
-      label: 'HA Cluster',
-      path: '/cluster',
-      icon: <ServerIcon size={18} />,
-      badge: 'V9',
-      badgeColor: '#008000'
-    },
-    {
-      id: 'scheduler',
-      label: 'Scheduler',
-      path: '/scheduler',
-      icon: <ActivityLogIcon size={18} />,
-      badge: 'HA',
-      badgeColor: '#000080'
     },
     {
       id: 'settings',

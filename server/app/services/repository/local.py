@@ -34,9 +34,12 @@ class LocalFilesystemRepository(StorageRepositoryBase):
 
         target_dir = os.path.join(self.root_path, "clients", safe_client, "runs", safe_run, "objects")
         # Security: verify target_dir remains inside repository root
-        norm_root = os.path.normcase(os.path.abspath(self.root_path))
-        norm_target = os.path.normcase(os.path.abspath(target_dir))
-        if not norm_target.startswith(norm_root):
+        norm_root = os.path.abspath(self.root_path)
+        norm_target = os.path.abspath(target_dir)
+        try:
+            if os.path.normcase(os.path.commonpath([norm_root, norm_target])) != os.path.normcase(norm_root):
+                raise ValueError(f"Directory traversal attack detected: '{client_identifier}'")
+        except ValueError:
             raise ValueError(f"Directory traversal attack detected: '{client_identifier}'")
 
         os.makedirs(target_dir, exist_ok=True)
@@ -48,9 +51,12 @@ class LocalFilesystemRepository(StorageRepositoryBase):
         target_dir = self._get_target_dir(client_identifier, run_id)
         obj_path = os.path.join(target_dir, safe_obj)
 
-        norm_dir = os.path.normcase(os.path.abspath(target_dir))
-        norm_obj = os.path.normcase(os.path.abspath(obj_path))
-        if not norm_obj.startswith(norm_dir):
+        norm_dir = os.path.abspath(target_dir)
+        norm_obj = os.path.abspath(obj_path)
+        try:
+            if os.path.normcase(os.path.commonpath([norm_dir, norm_obj])) != os.path.normcase(norm_dir):
+                raise ValueError(f"Path traversal detected in object_id: '{object_id}'")
+        except ValueError:
             raise ValueError(f"Path traversal detected in object_id: '{object_id}'")
 
         return obj_path
@@ -199,9 +205,12 @@ class LocalFilesystemRepository(StorageRepositoryBase):
             raise ValueError(f"Invalid SHA-256 format for CAS: '{content_sha256}'")
 
         dir_path = os.path.join(self.root_path, "objects", sha[:2], sha[2:4])
-        norm_root = os.path.normcase(os.path.abspath(self.root_path))
-        norm_dir = os.path.normcase(os.path.abspath(dir_path))
-        if not norm_dir.startswith(norm_root):
+        norm_root = os.path.abspath(self.root_path)
+        norm_dir = os.path.abspath(dir_path)
+        try:
+            if os.path.normcase(os.path.commonpath([norm_root, norm_dir])) != os.path.normcase(norm_root):
+                raise ValueError(f"Path traversal detected in CAS path: '{content_sha256}'")
+        except ValueError:
             raise ValueError(f"Path traversal detected in CAS path: '{content_sha256}'")
 
         os.makedirs(dir_path, exist_ok=True)

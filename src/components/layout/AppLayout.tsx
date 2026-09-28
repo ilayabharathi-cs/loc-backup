@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { WinTitleBar } from '../win95/WinTitleBar';
-import { WinMenuBar } from '../win95/WinMenuBar';
 import { WinSidebar } from '../win95/WinSidebar';
 import { WinStatusBar } from '../win95/WinStatusBar';
 import { WinToastContainer } from '../win95/WinToast';
@@ -32,12 +31,6 @@ export const AppLayout: React.FC = () => {
           onMaximize={() => setIsMaximized(!isMaximized)}
           onClose={() => addToast('Console Security', 'Console exit restricted by administrator policy.', 'warning')}
           active={true}
-        />
-
-        {/* Menu Bar */}
-        <WinMenuBar
-          onOpenAbout={() => setShowAbout(true)}
-          onOpenReport={() => setShowReport(true)}
         />
 
         {/* Mid Container: Sidebar + Content */}

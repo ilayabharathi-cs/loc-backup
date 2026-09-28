@@ -52,17 +52,26 @@ def seed_database():
             db.add_all([admin, operator, viewer])
             db.commit()
 
-        # 2. Seed Storage Repositories
+        # 2. Seed Storage Repositories (Dynamic Path & Real Disk Capacity)
         if db.query(StorageRepository).count() == 0:
+            import shutil
+            from app.config import settings
             print("[+] Seeding primary storage repository...")
-            tb_bytes = 1024 ** 4
+            repo_path = settings.get_repository_root()
+            try:
+                total_b, used_b, free_b = shutil.disk_usage(repo_path)
+            except Exception:
+                tb_bytes = 1024 ** 4
+                total_b = 10 * tb_bytes
+                free_b = 10 * tb_bytes
+
             repo = StorageRepository(
-                name="Primary-Backup-Repository-D",
+                name="Local-CAS-Repository",
                 repository_type="local",
-                path=r"D:\BackupRepository",
-                total_bytes=int(10.0 * tb_bytes),
-                used_bytes=int(2.4 * tb_bytes),
-                available_bytes=int(7.6 * tb_bytes),
+                path=repo_path,
+                total_bytes=total_b,
+                used_bytes=0,
+                available_bytes=free_b,
                 status="online"
             )
             db.add(repo)
@@ -130,9 +139,10 @@ def seed_database():
 
             db.commit()
 
-        # 4. Seed 20 Realistic Windows Clients
-        if db.query(Client).count() == 0:
-            print("[+] Seeding 20 enterprise Windows workstations (PC-001 through PC-020)...")
+        # 4. Optional Mock Clients & Jobs (Only seeded when explicitly requested via SEED_DEMO_DATA=true)
+        seed_demo = os.environ.get("SEED_DEMO_DATA", "false").lower() in ("true", "1", "yes")
+        if seed_demo and db.query(Client).count() == 0:
+            print("[+] Seeding demo Windows workstations (PC-001 through PC-020)...")
             users_list = [
                 ("PC-001", "OFFICE-PC-01", "Arun Kumar", "Windows 11 Pro 23H2", "192.168.1.101", "active"),
                 ("PC-002", "OFFICE-PC-02", "Sarah Jenkins", "Windows 11 Enterprise", "192.168.1.102", "active"),
@@ -174,8 +184,7 @@ def seed_database():
                 clients_db.append(c)
             db.commit()
 
-            # 5. Seed Jobs & Recovery Points for Clients
-            print("[+] Seeding backup jobs and recovery points...")
+            # 5. Seed Jobs & Recovery Points for Demo Clients
             pol = db.query(BackupPolicy).first()
             c1 = db.query(Client).filter(Client.client_id == "PC-001").first()
             if c1 and pol:
@@ -214,55 +223,15 @@ def seed_database():
                 )
                 db.add(rp1)
 
-            c2 = db.query(Client).filter(Client.client_id == "PC-002").first()
-            if c2 and pol:
-                j2 = BackupJob(
-                    job_id="JOB-9399",
-                    client_id=c2.id,
-                    policy_id=pol.id,
-                    status="completed",
-                    started_at=now - datetime.timedelta(minutes=15),
-                    completed_at=now - datetime.timedelta(minutes=12)
-                )
-                db.add(j2)
-                db.flush()
-
-                r2 = BackupRun(
-                    job_id=j2.id,
-                    client_id=c2.id,
-                    backup_type="incremental",
-                    started_at=j2.started_at,
-                    completed_at=j2.completed_at,
-                    status="completed",
-                    files_processed=55,
-                    bytes_processed=618 * 1024 * 1024,
-                    bytes_uploaded=618 * 1024 * 1024
-                )
-                db.add(r2)
-                db.flush()
-
-                rp2 = RecoveryPoint(
-                    client_id=c2.id,
-                    backup_run_id=r2.id,
-                    timestamp=j2.completed_at,
-                    files_count=55,
-                    total_size_bytes=618 * 1024 * 1024,
-                    status="valid"
-                )
-                db.add(rp2)
-
             db.commit()
 
-        # 6. Seed Audit Logs
+        # 5. Seed Audit Logs
         if db.query(AuditLog).count() == 0:
-            print("[+] Seeding enterprise audit logs...")
+            print("[+] Seeding system audit log...")
             now = datetime.datetime.now(datetime.timezone.utc)
             logs = [
-                AuditLog(action="SYSTEM_INITIALIZED", resource_type="system", details="RetroVault Backup Control Plane daemon started", created_at=now - datetime.timedelta(hours=5)),
-                AuditLog(action="POLICY_APPLIED", resource_type="policy", resource_id="1", details="Applied policy 'Windows User Data' to enrolled workstations", created_at=now - datetime.timedelta(hours=4)),
-                AuditLog(action="BACKUP_COMPLETED", resource_type="job", resource_id="JOB-9400", details="Incremental backup completed for PC-001 (412 MB)", created_at=now - datetime.timedelta(minutes=8)),
-                AuditLog(action="BACKUP_COMPLETED", resource_type="job", resource_id="JOB-9399", details="Incremental backup completed for PC-002 (618 MB)", created_at=now - datetime.timedelta(minutes=12)),
-                AuditLog(action="CLIENT_TIMEOUT_WARNING", resource_type="client", resource_id="PC-003", details="Heartbeat missed 3 cycles, client marked offline", created_at=now - datetime.timedelta(minutes=20)),
+                AuditLog(action="SYSTEM_INITIALIZED", resource_type="system", details="RetroVault Backup Control Plane daemon started", created_at=now - datetime.timedelta(hours=1)),
+                AuditLog(action="POLICY_APPLIED", resource_type="policy", resource_id="1", details="Applied policy 'Windows User Data' to control plane", created_at=now - datetime.timedelta(minutes=30)),
             ]
             db.add_all(logs)
             db.commit()

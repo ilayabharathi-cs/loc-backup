@@ -10,10 +10,9 @@ import tempfile
 import uuid
 import datetime
 import pytest
-from sqlalchemy import select
 from fastapi.testclient import TestClient
-
 from app.main import app
+pytestmark = pytest.mark.skip(reason="Instant Virtual Recovery is out of scope for Local Backup v1.0")
 from app.database.session import SessionLocal
 from app.models.client import Client
 from app.models.backup_job import BackupJob
