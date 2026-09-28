@@ -31,26 +31,26 @@ class PathValidator:
         """
         Normalize and validate a relative path within a Recovery Point.
         Strips drive letters or leading slashes, ensures no traversal escapes.
+        Works identically whether server runs on Linux or Windows.
         """
-        if not raw_path or not raw_path.strip():
+        if not raw_path or not str(raw_path).strip():
             raise PathSafetyError("Empty or blank path provided")
 
-        cleaned = raw_path.strip().replace("/", "\\")
+        cleaned = str(raw_path).strip()
 
         # Reject UNC paths
-        if cleaned.startswith("\\\\"):
+        if cleaned.startswith(r"\\") or cleaned.startswith("//"):
             raise PathSafetyError(f"UNC paths are prohibited: {raw_path}")
 
         # Strip drive letter if present (e.g. C:\Users\... -> Users\...)
         drive, tail = os.path.splitdrive(cleaned)
-        cleaned = tail.lstrip("\\/")
+        cleaned = tail.lstrip(r"\/")
 
-        # Normalize
-        norm = os.path.normpath(cleaned)
+        # Split components across any combination of \ and /
+        raw_parts = [p for p in re.split(r"[\\/]+", cleaned) if p]
 
-        # Check for path traversal components
-        parts = norm.split(os.sep)
-        for part in parts:
+        safe_parts = []
+        for part in raw_parts:
             if part in ("..", "."):
                 raise PathSafetyError(f"Path traversal component detected in path: {raw_path}")
 
@@ -59,10 +59,12 @@ class PathValidator:
             if base_name in WINDOWS_RESERVED_NAMES or part.upper() in WINDOWS_RESERVED_NAMES:
                 raise PathSafetyError(f"Windows reserved device name prohibited: '{part}' in '{raw_path}'")
 
-        if norm.startswith("..") or norm == ".":
+            safe_parts.append(part)
+
+        if not safe_parts:
             raise PathSafetyError(f"Path traversal detected: {raw_path}")
 
-        return norm
+        return os.path.join(*safe_parts)
 
     @classmethod
     def resolve_destination(cls, destination_root: str, relative_path: str) -> str:

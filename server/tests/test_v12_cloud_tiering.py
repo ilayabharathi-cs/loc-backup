@@ -11,8 +11,8 @@ import uuid
 import datetime
 import pytest
 from fastapi.testclient import TestClient
-
 from app.main import app
+pytestmark = pytest.mark.skip(reason="Cloud tiering is out of scope for Local Backup v1.0")
 from app.database.session import SessionLocal
 from app.models.storage_object import StorageObject
 from app.models.backup_file import BackupFile

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  getObservabilityOverview
+  getObservabilityOverview,
+  pruneTelemetry,
+  downsampleTelemetry
 } from '../api/v10';
 import type { ObservabilityOverview } from '../api/v10';
-import axios from 'axios';
 
 export const ObservabilityPage: React.FC = () => {
   const [data, setData] = useState<ObservabilityOverview | null>(null);
@@ -30,8 +31,8 @@ export const ObservabilityPage: React.FC = () => {
 
   const handlePrune = async () => {
     try {
-      const res = await axios.post('/api/v1/observability/prune');
-      setStatusMsg(`Telemetry pruned successfully: ${JSON.stringify(res.data)}`);
+      const data = await pruneTelemetry();
+      setStatusMsg(`Telemetry pruned successfully: ${JSON.stringify(data)}`);
       await loadData();
     } catch (e: any) {
       setStatusMsg(`Prune error: ${e.message}`);
@@ -40,8 +41,8 @@ export const ObservabilityPage: React.FC = () => {
 
   const handleDownsample = async () => {
     try {
-      const res = await axios.post('/api/v1/observability/downsample');
-      setStatusMsg(`Downsampling rollups generated: ${JSON.stringify(res.data)}`);
+      const data = await downsampleTelemetry();
+      setStatusMsg(`Downsampling rollups generated: ${JSON.stringify(data)}`);
       await loadData();
     } catch (e: any) {
       setStatusMsg(`Downsample error: ${e.message}`);

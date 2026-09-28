@@ -96,3 +96,14 @@ def get_operational_schedules(db: Session = Depends(get_db)):
     scheduler = OperationalScheduler(db)
     schedules = scheduler.get_registered_schedules()
     return ApiResponse(success=True, data=schedules, message="Operational schedules retrieved")
+
+
+@router.get("/system-info", response_model=ApiResponse[Dict[str, Any]])
+def get_server_system_info():
+    """Retrieve runtime host, platform, repository and database info."""
+    from app.config import settings
+    return ApiResponse(
+        success=True,
+        data=settings.get_system_info(),
+        message="Server system and platform info retrieved"
+    )

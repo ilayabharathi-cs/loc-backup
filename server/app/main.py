@@ -11,15 +11,14 @@ from app.api.v1 import (
     auth, clients, agents, policies, jobs, backups, restore, storage, retention, activity, dashboard,
     repositories, replication, security, alerts, dr, settings as settings_api,
     security_events, fleet, incidents, integrity, simulations,
-    cluster, distributed_scheduler, fleet_bulk,
-    operations, capacity, observability_api, compliance_api, reports_api,
+    fleet_bulk, operations, capacity, observability_api, compliance_api, reports_api,
     workloads, recovery_verification, recovery_readiness, backup_chains,
-    policy_orchestration, remediations, dependencies, storage_tiers, virtual_recovery
+    policy_orchestration, remediations, dependencies
 )
 
 # Structured application logging
 logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
+    level=logging.INFO if settings.DEBUG else logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("retrovault.control_plane")
@@ -97,13 +96,19 @@ async def generic_exception_handler(request: Request, exc: Exception):
 @app.get("/health", tags=["Health"])
 def health_check():
     db_connected = check_db_connection()
+    sys_info = settings.get_system_info()
     return {
         "status": "ok" if db_connected else "degraded",
         "database": "connected" if db_connected else "disconnected",
-        "version": "1.0.0"
+        "product": "RetroVault Local Backup",
+        "version": "1.0.0",
+        "server_platform": sys_info["server_platform"],
+        "server_os_release": sys_info["server_os_release"],
+        "database_engine": sys_info["database_engine"],
+        "repository_root": sys_info["repository_root"]
     }
 
-# Register API v1 routers
+# Register Core Local Backup API v1 routers
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(clients.router, prefix=settings.API_V1_STR)
 app.include_router(agents.router, prefix=settings.API_V1_STR)
@@ -126,8 +131,6 @@ app.include_router(fleet.router, prefix=settings.API_V1_STR)
 app.include_router(incidents.router, prefix=settings.API_V1_STR)
 app.include_router(integrity.router, prefix=settings.API_V1_STR)
 app.include_router(simulations.router, prefix=settings.API_V1_STR)
-app.include_router(cluster.router, prefix=settings.API_V1_STR)
-app.include_router(distributed_scheduler.router, prefix=settings.API_V1_STR)
 app.include_router(fleet_bulk.router, prefix=settings.API_V1_STR)
 app.include_router(operations.router, prefix=settings.API_V1_STR)
 app.include_router(capacity.router, prefix=settings.API_V1_STR)
@@ -141,9 +144,6 @@ app.include_router(backup_chains.router, prefix=settings.API_V1_STR)
 app.include_router(policy_orchestration.router, prefix=settings.API_V1_STR)
 app.include_router(remediations.router, prefix=settings.API_V1_STR)
 app.include_router(dependencies.router, prefix=settings.API_V1_STR)
-app.include_router(storage_tiers.cloud_credentials_router, prefix=settings.API_V1_STR)
-app.include_router(storage_tiers.storage_tiers_router, prefix=settings.API_V1_STR)
-app.include_router(virtual_recovery.router, prefix=settings.API_V1_STR)
 
 
 @app.on_event("startup")

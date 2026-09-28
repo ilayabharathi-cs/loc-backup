@@ -133,6 +133,7 @@ def main():
                 if not os.path.exists(full_path):
                     rel, sz, sha_s, algo, _ = repo.store_cas_object(content_bytes, sha, len(content_bytes), original_name, compress=compress)
                 existing.state = "AVAILABLE"
+                existing.integrity_status = "HEALTHY"
                 db.commit()
                 return existing, existing.storage_path
             rel, sz, sha_s, algo, _ = repo.store_cas_object(content_bytes, sha, len(content_bytes), original_name, compress=compress)

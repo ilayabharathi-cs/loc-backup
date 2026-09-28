@@ -129,24 +129,24 @@ export const v11Api = {
     const params: Record<string, string> = {};
     if (clientId) params.client_id = clientId;
     if (workloadType) params.workload_type = workloadType;
-    const res = await apiClient.get<Workload[]>('/api/v1/workloads', { params });
+    const res = await apiClient.get<Workload[]>('/workloads', { params });
     return res.data;
   },
 
   getWorkload: async (workloadId: string): Promise<Workload> => {
-    const res = await apiClient.get<Workload>(`/api/v1/workloads/${workloadId}`);
+    const res = await apiClient.get<Workload>(`/workloads/${workloadId}`);
     return res.data;
   },
 
   discoverWorkloads: async (clientId: string, providerType?: string): Promise<Workload[]> => {
-    const res = await apiClient.post<Workload[]>(`/api/v1/workloads/${clientId}/discover`, {
+    const res = await apiClient.post<Workload[]>(`/workloads/${clientId}/discover`, {
       provider_type: providerType
     });
     return res.data;
   },
 
   protectWorkload: async (workloadId: string, backupType: string = 'FULL'): Promise<any> => {
-    const res = await apiClient.post(`/api/v1/workloads/${workloadId}/protect`, {
+    const res = await apiClient.post(`/workloads/${workloadId}/protect`, {
       backup_type: backupType
     });
     return res.data;
@@ -158,7 +158,7 @@ export const v11Api = {
     targetDestination: string,
     recoveryMode: string = 'APPLICATION_RESTORE'
   ): Promise<RestorePreview> => {
-    const res = await apiClient.post<RestorePreview>(`/api/v1/workloads/${workloadId}/restore-preview`, {
+    const res = await apiClient.post<RestorePreview>(`/workloads/${workloadId}/restore-preview`, {
       recovery_point_id: recoveryPointId,
       target_destination: targetDestination,
       recovery_mode: recoveryMode
@@ -172,7 +172,7 @@ export const v11Api = {
     targetDestination: string,
     recoveryMode: string = 'APPLICATION_RESTORE'
   ): Promise<RestoreExecution> => {
-    const res = await apiClient.post<RestoreExecution>(`/api/v1/workloads/${workloadId}/restore`, {
+    const res = await apiClient.post<RestoreExecution>(`/workloads/${workloadId}/restore`, {
       recovery_point_id: recoveryPointId,
       target_destination: targetDestination,
       recovery_mode: recoveryMode
@@ -184,7 +184,7 @@ export const v11Api = {
   getRecoveryVerifications: async (workloadId?: string): Promise<RecoveryVerification[]> => {
     const params: Record<string, string> = {};
     if (workloadId) params.workload_id = workloadId;
-    const res = await apiClient.get<RecoveryVerification[]>('/api/v1/recovery-verification', { params });
+    const res = await apiClient.get<RecoveryVerification[]>('/recovery-verification', { params });
     return res.data;
   },
 
@@ -193,7 +193,7 @@ export const v11Api = {
     workloadId: string,
     verificationType: string = 'CHECKSUM'
   ): Promise<RecoveryVerification> => {
-    const res = await apiClient.post<RecoveryVerification>('/api/v1/recovery-verification', {
+    const res = await apiClient.post<RecoveryVerification>('/recovery-verification', {
       recovery_point_id: recoveryPointId,
       workload_id: workloadId,
       verification_type: verificationType
@@ -202,18 +202,18 @@ export const v11Api = {
   },
 
   retryVerification: async (verificationId: string): Promise<RecoveryVerification> => {
-    const res = await apiClient.post<RecoveryVerification>(`/api/v1/recovery-verification/${verificationId}/retry`);
+    const res = await apiClient.post<RecoveryVerification>(`/recovery-verification/${verificationId}/retry`);
     return res.data;
   },
 
   // --- Recovery Readiness ---
   getAllReadiness: async (): Promise<RecoveryReadiness[]> => {
-    const res = await apiClient.get<RecoveryReadiness[]>('/api/v1/recovery-readiness');
+    const res = await apiClient.get<RecoveryReadiness[]>('/recovery-readiness');
     return res.data;
   },
 
   getWorkloadReadiness: async (workloadId: string): Promise<RecoveryReadiness> => {
-    const res = await apiClient.get<RecoveryReadiness>(`/api/v1/recovery-readiness/${workloadId}`);
+    const res = await apiClient.get<RecoveryReadiness>(`/recovery-readiness/${workloadId}`);
     return res.data;
   },
 
@@ -221,12 +221,12 @@ export const v11Api = {
   getBackupChains: async (workloadId?: string): Promise<BackupChain[]> => {
     const params: Record<string, string> = {};
     if (workloadId) params.workload_id = workloadId;
-    const res = await apiClient.get<BackupChain[]>('/api/v1/backup-chains', { params });
+    const res = await apiClient.get<BackupChain[]>('/backup-chains', { params });
     return res.data;
   },
 
   validateBackupChain: async (chainId: string): Promise<any> => {
-    const res = await apiClient.post(`/api/v1/backup-chains/${chainId}/validate`);
+    const res = await apiClient.post(`/backup-chains/${chainId}/validate`);
     return res.data;
   },
 
@@ -234,12 +234,12 @@ export const v11Api = {
   getPolicyLifecycles: async (policyId?: string): Promise<PolicyLifecycle[]> => {
     const params: Record<string, string> = {};
     if (policyId) params.policy_id = policyId;
-    const res = await apiClient.get<PolicyLifecycle[]>('/api/v1/policy-orchestration', { params });
+    const res = await apiClient.get<PolicyLifecycle[]>('/policy-orchestration', { params });
     return res.data;
   },
 
   createPolicyVersion: async (policyId: string, definition: Record<string, any>): Promise<PolicyLifecycle> => {
-    const res = await apiClient.post<PolicyLifecycle>('/api/v1/policy-orchestration', {
+    const res = await apiClient.post<PolicyLifecycle>('/policy-orchestration', {
       policy_id: policyId,
       definition
     });
@@ -247,19 +247,19 @@ export const v11Api = {
   },
 
   approvePolicyVersion: async (lifecycleId: number, notes?: string): Promise<PolicyLifecycle> => {
-    const res = await apiClient.post<PolicyLifecycle>(`/api/v1/policy-orchestration/${lifecycleId}/approve`, {
+    const res = await apiClient.post<PolicyLifecycle>(`/policy-orchestration/${lifecycleId}/approve`, {
       notes
     });
     return res.data;
   },
 
   activatePolicyVersion: async (lifecycleId: number): Promise<PolicyLifecycle> => {
-    const res = await apiClient.post<PolicyLifecycle>(`/api/v1/policy-orchestration/${lifecycleId}/activate`);
+    const res = await apiClient.post<PolicyLifecycle>(`/policy-orchestration/${lifecycleId}/activate`);
     return res.data;
   },
 
   rollbackPolicy: async (policyId: string, targetVersion: number): Promise<PolicyLifecycle> => {
-    const res = await apiClient.post<PolicyLifecycle>(`/api/v1/policy-orchestration/${policyId}/rollback`, {
+    const res = await apiClient.post<PolicyLifecycle>(`/policy-orchestration/${policyId}/rollback`, {
       target_version: targetVersion
     });
     return res.data;
@@ -267,7 +267,7 @@ export const v11Api = {
 
   // --- Remediations ---
   getRemediations: async (): Promise<RemediationAction[]> => {
-    const res = await apiClient.get<RemediationAction[]>('/api/v1/remediations');
+    const res = await apiClient.get<RemediationAction[]>('/remediations');
     return res.data;
   },
 
@@ -277,7 +277,7 @@ export const v11Api = {
     targetResourceId: string,
     requiresDualApproval: boolean = false
   ): Promise<RemediationAction> => {
-    const res = await apiClient.post<RemediationAction>('/api/v1/remediations', {
+    const res = await apiClient.post<RemediationAction>('/remediations', {
       action_type: actionType,
       target_resource_type: targetResourceType,
       target_resource_id: targetResourceId,
@@ -287,12 +287,12 @@ export const v11Api = {
   },
 
   approveRemediation: async (remediationId: string): Promise<RemediationAction> => {
-    const res = await apiClient.post<RemediationAction>(`/api/v1/remediations/${remediationId}/approve`);
+    const res = await apiClient.post<RemediationAction>(`/remediations/${remediationId}/approve`);
     return res.data;
   },
 
   executeRemediation: async (remediationId: string): Promise<any> => {
-    const res = await apiClient.post(`/api/v1/remediations/${remediationId}/execute`);
+    const res = await apiClient.post(`/remediations/${remediationId}/execute`);
     return res.data;
   }
 };
