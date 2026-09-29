@@ -167,10 +167,18 @@ class LocalFilesystemRepository(StorageRepositoryBase):
         Returns: (storage_object_rel_path, bytes_written, computed_sha256)
         """
         staging_file = self.get_staging_path(client_identifier, run_id, session_id)
-        if not os.path.exists(staging_file):
-            raise FileNotFoundError(f"Staging file not found for session {session_id}")
-
         final_path = self.get_object_path(client_identifier, run_id, object_id)
+
+        if not os.path.exists(staging_file):
+            if os.path.exists(final_path):
+                total_bytes = os.path.getsize(final_path)
+                rel_path = os.path.relpath(final_path, self.root_path).replace("\\", "/")
+                return rel_path, total_bytes, (expected_sha256 or object_id)
+            if expected_sha256 and self.cas_object_exists(expected_sha256):
+                cas_path = self.get_cas_path(expected_sha256)
+                rel_path = os.path.relpath(cas_path, self.root_path).replace("\\", "/")
+                return rel_path, os.path.getsize(cas_path), expected_sha256
+            raise FileNotFoundError(f"Staging file not found for session {session_id}")
 
         hasher = hashlib.sha256()
         total_bytes = 0

@@ -1193,6 +1193,14 @@ def complete_upload_session(
             expected_sha256=req.final_sha256
         )
     except Exception as e:
+        existing_file = db.query(BackupFile).filter(
+            BackupFile.backup_run_id == run.id,
+            BackupFile.original_path == session.file_path
+        ).first()
+        if existing_file:
+            session.status = "completed"
+            db.commit()
+            return ApiResponse(success=True, data=_to_file_response(existing_file), message="Upload session already completed")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Session completion failed: {e}")
 
     now = datetime.datetime.now(datetime.timezone.utc)

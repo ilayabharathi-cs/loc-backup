@@ -42,7 +42,13 @@ class BackendApiClient:
         """Returns the currently active cluster control plane endpoint."""
         return self.endpoints[self.current_endpoint_idx]
 
-    def _make_request(self, method: str, endpoint: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _make_request(
+        self,
+        method: str,
+        endpoint: str,
+        payload: Optional[Dict[str, Any]] = None,
+        timeout: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Perform HTTP request with retry, exponential backoff, and multi-endpoint failover."""
         import uuid
         headers = {
@@ -62,6 +68,7 @@ class BackendApiClient:
 
         attempt = 0
         backoff = 1.0
+        req_timeout = timeout or self.timeout
 
         while attempt < self.max_retries:
             attempt += 1
@@ -69,7 +76,7 @@ class BackendApiClient:
             url = f"{current_endpoint}/api/v1{endpoint}"
             try:
                 req = Request(url, data=data_bytes, headers=headers, method=method)
-                with urlopen(req, timeout=self.timeout) as resp:
+                with urlopen(req, timeout=req_timeout) as resp:
                     resp_body = resp.read().decode("utf-8")
                     result = json.loads(resp_body) if resp_body else {}
                     self.base_url = current_endpoint
@@ -237,7 +244,12 @@ class BackendApiClient:
             "final_sha256": final_sha256,
             "total_size": total_size
         }
-        res = self._make_request("POST", f"/backups/upload-session/{session_id}/complete", payload)
+        res = self._make_request(
+            "POST",
+            f"/backups/upload-session/{session_id}/complete",
+            payload,
+            timeout=max(self.timeout, 300)
+        )
         if res.get("success"):
             return res.get("data", {})
         raise ApiClientError(f"Failed to complete upload session: {res.get('error') or res.get('message')}")

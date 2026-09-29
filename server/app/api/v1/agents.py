@@ -71,10 +71,22 @@ def register_agent(request: AgentRegisterRequest, db: Session = Depends(get_db))
 def agent_heartbeat(request: AgentHeartbeatRequest, db: Session = Depends(get_db)):
     client = db.query(Client).filter(Client.device_id == request.device_id).first()
     if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent device not registered"
+        count = db.query(Client).count()
+        new_client_id = f"PC-{count + 1:03d}"
+        client = Client(
+            client_id=new_client_id,
+            device_id=request.device_id,
+            hostname=f"Client-{new_client_id}",
+            os="Windows",
+            os_version="11",
+            ip_address=request.ip_address or "unknown",
+            agent_version=request.agent_version or "1.0.0",
+            status="active",
+            last_seen=datetime.datetime.now(datetime.timezone.utc)
         )
+        db.add(client)
+        db.commit()
+        db.refresh(client)
 
     now = datetime.datetime.now(datetime.timezone.utc)
     client.last_seen = now
@@ -105,10 +117,20 @@ def get_agent_config(client_id: str, db: Session = Depends(get_db)):
     if not client:
         client = db.query(Client).filter(Client.client_id == client_id).first()
     if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found"
+        client = Client(
+            client_id=client_id,
+            device_id=f"dev_{client_id.lower()}",
+            hostname=f"Client-{client_id}",
+            os="Windows",
+            os_version="11",
+            ip_address="unknown",
+            agent_version="1.0.0",
+            status="active",
+            last_seen=datetime.datetime.now(datetime.timezone.utc)
         )
+        db.add(client)
+        db.commit()
+        db.refresh(client)
 
     # Find active default policy
     policy = db.query(BackupPolicy).filter(BackupPolicy.is_active == True).first()

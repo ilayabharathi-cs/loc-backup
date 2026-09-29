@@ -26,7 +26,19 @@ def resolve_path_for_user(raw_path: str, user: UserProfile) -> str:
 
     # Resolve any remaining general system variables
     resolved = resolve_system_variables(resolved)
-    return canonicalize_path(resolved)
+    canon = canonicalize_path(resolved)
+
+    # If standard user folder doesn't exist, check OneDrive redirection (e.g. OneDrive\Desktop)
+    if not os.path.exists(canon) and os.path.isabs(canon):
+        try:
+            rel = os.path.relpath(canon, user.profile_path)
+            onedrive_candidate = os.path.join(user.profile_path, "OneDrive", rel)
+            if os.path.exists(onedrive_candidate):
+                return canonicalize_path(onedrive_candidate)
+        except ValueError:
+            pass
+
+    return canon
 
 
 def resolve_universal_path(raw_path: str, profiles: Optional[List[UserProfile]] = None) -> List[str]:

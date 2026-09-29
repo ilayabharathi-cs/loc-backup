@@ -30,7 +30,12 @@ def is_retryable_error(exc: Exception) -> bool:
         "broken pipe",
         "network unreachable",
         "remote end closed",
-        "forcibly closed"
+        "forcibly closed",
+        "internal server error",
+        "500",
+        "502",
+        "503",
+        "504"
     ]
     return any(ind in msg for ind in transient_indicators)
 
@@ -44,10 +49,10 @@ class RetryEngine:
     def __init__(
         self,
         base_delay: float = 1.0,
-        max_delay: float = 60.0,
-        factor: float = 2.0,
+        max_delay: float = 30.0,
+        factor: float = 1.5,
         jitter: bool = True,
-        max_retries: int = 5
+        max_retries: int = 10
     ):
         self.base_delay = base_delay
         self.max_delay = max_delay
