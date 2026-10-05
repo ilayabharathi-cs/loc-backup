@@ -171,7 +171,26 @@ def create_backup_run(request: BackupRunCreate, db: Session = Depends(get_db)):
     now = datetime.datetime.now(datetime.timezone.utc)
 
     # Phase 14: Safe Concurrency - Enforce single active backup run per client + policy
-    # Prevents simultaneous FULL + INCREMENTAL runs, or any concurrent run if prevent_concurrent is requested
+    # Prevents simultaneous runs while automatically reaping abandoned/crashed runs with expired leases
+    all_runs = db.query(BackupRun).filter(
+        BackupRun.client_id == client.id,
+        BackupRun.status == "running",
+        BackupRun.state.notin_(["COMPLETED", "FAILED", "CANCELLED"])
+    ).all()
+
+    for r in all_runs:
+        if r.lease_expires_at:
+            lexp = r.lease_expires_at
+            if lexp.tzinfo is None:
+                lexp = lexp.replace(tzinfo=datetime.timezone.utc)
+            if lexp < now:
+                r.status = "failed"
+                r.state = "FAILED"
+                r.completed_at = now
+                r.error_message = "Run lease expired without renewal (agent disconnected or terminated)"
+    if all_runs:
+        db.commit()
+
     conflicting_query = db.query(BackupRun).filter(
         BackupRun.client_id == client.id,
         BackupRun.policy_id == policy_id,

@@ -6,6 +6,18 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: true,
+    watch: {
+      ignored: [
+        '**/repository/**',
+        '**/server/**',
+        '**/agent/**',
+        '**/*.db',
+        '**/*.db-shm',
+        '**/*.db-wal',
+        '**/*.log',
+      ],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

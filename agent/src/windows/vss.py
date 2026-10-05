@@ -190,8 +190,9 @@ class WindowsVSSProvider(VSSProvider):
         snap_device = self._active_snapshots.get(norm_vol)
         if snap_device:
             clean_rel = relative_path.lstrip("\\/")
-            base = snap_device if snap_device.endswith("\\") else f"{snap_device}\\"
-            mapped_path = os.path.join(base, clean_rel)
+            snap_clean = snap_device.rstrip("\\/")
+            sep = "\\" if "\\" in snap_device or sys.platform == "win32" else os.sep
+            mapped_path = f"{snap_clean}{sep}{clean_rel}"
             self.logger.debug(f"Source-to-snapshot mapping: '{volume}\\{relative_path}' -> '{mapped_path}'")
             return mapped_path
 

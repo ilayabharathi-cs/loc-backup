@@ -268,6 +268,9 @@ def cmd_incremental_backup(args) -> None:
 
 def cmd_run(args) -> None:
     """Run agent daemon in foreground mode."""
+    from agent.src.windows.startup import ensure_startup_persistence
+    ensure_startup_persistence(args.config)
+
     agent_core = RetroVaultAgentCore(args.config)
 
     def sig_handler(sig, frame):
@@ -299,6 +302,8 @@ def main():
     parser.add_argument("--incremental-backup", action="store_true", help="Trigger an incremental backup comparing against latest baseline recovery point")
     parser.add_argument("--install-service", action="store_true", help="Install Windows Service via pywin32")
     parser.add_argument("--uninstall-service", action="store_true", help="Uninstall Windows Service via pywin32")
+    parser.add_argument("--install-startup", action="store_true", help="Register agent in Windows Startup Apps (auto-start on boot/reboot without user consent)")
+    parser.add_argument("--uninstall-startup", action="store_true", help="Remove agent from Windows Startup Apps")
 
     args = parser.parse_args()
 
@@ -314,6 +319,14 @@ def main():
         cmd_register(args)
     elif args.heartbeat_once:
         cmd_heartbeat_once(args)
+    elif args.install_startup:
+        from agent.src.windows.startup import ensure_startup_persistence
+        ok = ensure_startup_persistence(args.config)
+        print(f"Windows Startup persistence registration: {'SUCCESS' if ok else 'PROCESSED'}")
+    elif args.uninstall_startup:
+        from agent.src.windows.startup import remove_startup_persistence
+        ok = remove_startup_persistence()
+        print(f"Windows Startup persistence removal: {'SUCCESS' if ok else 'NOT_FOUND'}")
     elif args.install_service:
         if PYWIN32_AVAILABLE:
             win32serviceutil.HandleCommandLine(RetroVaultWindowsService, argv=[sys.argv[0], "install"])

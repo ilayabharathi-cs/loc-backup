@@ -14,6 +14,8 @@ from agent.src.system_info import collect_system_info
 from agent.src.api_client import BackendApiClient, ApiClientError
 from agent.src.heartbeat import HeartbeatWorker
 from agent.src.scheduler import BackupScheduler
+from agent.src.backup.live_sync import ContinuousSyncWorker
+from agent.src.windows.startup import ensure_startup_persistence
 
 # Windows Service imports (optional pywin32 support)
 try:
@@ -30,12 +32,19 @@ class RetroVaultAgentCore:
     """Core daemon engine managing threads, registration, and graceful shutdown."""
 
     def __init__(self, config_path: Optional[str] = None):
+        self.config_path = config_path
         self.config = load_config(config_path)
         self.logger = setup_logger(self.config.log_level)
         self.identity = DeviceIdentity()
         self.api_client = BackendApiClient(self.config)
         self.stop_event = threading.Event()
         self.threads = []
+
+        # Auto-register in Windows Startup Apps and persist config.json
+        try:
+            ensure_startup_persistence(config_path)
+        except Exception as e:
+            self.logger.warning(f"Startup persistence setup notice: {e}")
 
     def perform_registration(self) -> bool:
         """Register agent with backend if not already registered or to refresh details."""
@@ -98,7 +107,29 @@ class RetroVaultAgentCore:
         t_scheduler.start()
         self.threads.append(t_scheduler)
 
-        self.logger.info("RetroVault Backup Agent is active and running.")
+        # 4. Start Continuous Live Folder Watcher thread (Real-time background sync)
+        def get_active_policy():
+            return scheduler.current_resolved_policy or scheduler.sync_policy_and_jobs()
+
+        live_sync = ContinuousSyncWorker(
+            config=self.config,
+            identity=self.identity,
+            api_client=self.api_client,
+            policy_provider=get_active_policy,
+            stop_event=self.stop_event,
+            scan_interval_seconds=5.0,
+            debounce_seconds=3.0
+        )
+        t_live_sync = threading.Thread(
+            target=live_sync.run_loop,
+            name="ContinuousSyncWorkerThread",
+            daemon=True
+        )
+        t_live_sync.start()
+        self.threads.append(t_live_sync)
+
+        self.logger.info("RetroVault Backup Agent is active and running in background.")
+        self.logger.info("Continuous live folder monitoring is active for automatic backup.")
 
         # Keep main thread alive until stopped
         try:

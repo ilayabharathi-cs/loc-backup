@@ -20,25 +20,29 @@ class AgentPathValidator:
 
     @staticmethod
     def sanitize_relative_path(raw_path: str) -> str:
+        import re
         if not raw_path or not raw_path.strip():
             raise AgentPathSafetyError("Empty path")
 
-        cleaned = raw_path.strip().replace("/", "\\")
-        if cleaned.startswith("\\\\"):
+        cleaned = raw_path.strip()
+        if cleaned.startswith(r"\\") or cleaned.startswith("//"):
             raise AgentPathSafetyError(f"UNC paths prohibited: {raw_path}")
 
         drive, tail = os.path.splitdrive(cleaned)
-        cleaned = tail.lstrip("\\/")
+        cleaned = tail.lstrip(r"\/")
 
-        norm = os.path.normpath(cleaned)
-        parts = norm.split(os.sep)
-        for part in parts:
+        raw_parts = [p for p in re.split(r"[\\/]+", cleaned) if p]
+        if not raw_parts:
+            raise AgentPathSafetyError(f"Invalid path: {raw_path}")
+
+        for part in raw_parts:
             if part in ("..", "."):
                 raise AgentPathSafetyError(f"Path traversal detected in '{raw_path}'")
             base_name = os.path.splitext(part)[0].upper()
             if base_name in WINDOWS_RESERVED_NAMES or part.upper() in WINDOWS_RESERVED_NAMES:
                 raise AgentPathSafetyError(f"Windows reserved name '{part}' prohibited in '{raw_path}'")
 
+        norm = os.sep.join(raw_parts)
         if norm.startswith("..") or norm == ".":
             raise AgentPathSafetyError(f"Path traversal detected: {raw_path}")
 

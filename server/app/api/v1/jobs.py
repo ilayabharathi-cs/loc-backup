@@ -54,10 +54,17 @@ def list_jobs(
         latest_run = db.query(BackupRun).filter(BackupRun.job_id == j.id).order_by(BackupRun.started_at.desc()).first()
         if latest_run:
             processed_mb = round(latest_run.bytes_processed / (1024 * 1024), 1)
-            if latest_run.status == "running":
-                progress = 65
-            elif latest_run.status == "completed":
+            if latest_run.status == "completed":
                 progress = 100
+            elif latest_run.status == "running":
+                if latest_run.bytes_total > 0:
+                    progress = min(99, max(1, int((latest_run.bytes_uploaded / latest_run.bytes_total) * 100)))
+                elif latest_run.files_discovered > 0:
+                    progress = min(99, max(1, int((latest_run.files_uploaded / latest_run.files_discovered) * 100)))
+                else:
+                    progress = 5
+            elif latest_run.status in ("failed", "cancelled"):
+                progress = 0
 
         results.append(JobResponse(
             id=j.id,
@@ -90,10 +97,17 @@ def get_job(
     latest_run = db.query(BackupRun).filter(BackupRun.job_id == j.id).order_by(BackupRun.started_at.desc()).first()
     if latest_run:
         processed_mb = round(latest_run.bytes_processed / (1024 * 1024), 1)
-        if latest_run.status == "running":
-            progress = 65
-        elif latest_run.status == "completed":
+        if latest_run.status == "completed":
             progress = 100
+        elif latest_run.status == "running":
+            if latest_run.bytes_total > 0:
+                progress = min(99, max(1, int((latest_run.bytes_uploaded / latest_run.bytes_total) * 100)))
+            elif latest_run.files_discovered > 0:
+                progress = min(99, max(1, int((latest_run.files_uploaded / latest_run.files_discovered) * 100)))
+            else:
+                progress = 5
+        elif latest_run.status in ("failed", "cancelled"):
+            progress = 0
 
     res = JobResponse(
         id=j.id,

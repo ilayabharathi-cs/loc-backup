@@ -54,20 +54,52 @@ class AgentConfig(BaseModel):
 
 def load_config(custom_path: Optional[str] = None) -> AgentConfig:
     """Load configuration from custom_path, standard ProgramData path, or local fallback."""
-    candidate_paths = []
+    import sys
+
+    # If caller explicitly provided a custom path, load that file directly
     if custom_path:
-        candidate_paths.append(os.path.abspath(custom_path))
+        path = os.path.abspath(custom_path)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return AgentConfig(**data)
+            except Exception:
+                # Corrupt or invalid JSON in specified custom_path, safely fall back to default
+                return AgentConfig()
+        return AgentConfig()
+
+    candidate_paths = []
     
+    # 1. Directory adjacent to the running executable (crucial for standalone .exe)
+    if getattr(sys, "frozen", False) or sys.executable:
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        candidate_paths.append(os.path.join(exe_dir, "config.json"))
+
+    # 2. Canonical ProgramData path (%PROGRAMDATA%\RetroVault\agent\config.json)
     candidate_paths.append(get_default_config_path())
+
+    # 3. User AppData path (%APPDATA%\RetroVault\agent\config.json)
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        candidate_paths.append(os.path.join(appdata, "RetroVault", "agent", "config.json"))
+
+    # 4. Current working directory fallback
     candidate_paths.append(os.path.abspath("config.json"))
-    candidate_paths.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.example.json"))
+
+    # 5. Agent root / package directory
+    agent_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidate_paths.append(os.path.join(agent_root, "config.json"))
+    candidate_paths.append(os.path.join(agent_root, "config.example.json"))
 
     for path in candidate_paths:
         if path and os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                return AgentConfig(**data)
+                if data and ("server_url" in data or "agent_version" in data):
+                    return AgentConfig(**data)
             except Exception:
                 # Corrupt or invalid JSON; try next candidate or fallback
                 pass

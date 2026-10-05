@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { 
   Client, BackupJob, BackupPolicy, StorageMetrics, ActivityLog, AppSettings, ToastNotification 
@@ -281,8 +281,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  // Periodic background refresh every 5 seconds
+  const refreshBackendDataRef = useRef(refreshBackendData);
+  useEffect(() => {
+    refreshBackendDataRef.current = refreshBackendData;
+  });
+
   useEffect(() => {
     refreshBackendData();
+    const interval = setInterval(() => {
+      refreshBackendDataRef.current();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const triggerBackup = async (clientId: string) => {
@@ -292,8 +302,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const res = await jobsApi.create({ client_id: clientId });
       if (res.success && res.data) {
-        addToast('Backup Queued', `Job ${res.data.job_id} assigned in PostgreSQL control plane.`, 'success');
-        refreshBackendData();
+        addToast('Backup Queued', `Job ${res.data.job_id} assigned in control plane.`, 'success');
+        await refreshBackendData();
         return;
       }
     } catch {
@@ -320,15 +330,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       duration: '00:00:01',
       dataProcessedMb: 14.2,
       status: 'RUNNING',
-      progressPercent: 12,
+      progressPercent: 25,
       changeDetection: 'USN Journal (NTFS)',
       transferSpeedMbps: 92.5
     };
     setJobs(prev => [newJob, ...prev]);
 
+    // Progressive simulated updates
+    setTimeout(() => {
+      setJobs(prev => prev.map(j => j.id === newJobId ? { ...j, progressPercent: 65, dataProcessedMb: 28.6 } : j));
+    }, 2000);
+
+    setTimeout(() => {
+      setJobs(prev => prev.map(j => j.id === newJobId ? { ...j, progressPercent: 90, dataProcessedMb: 42.1 } : j));
+    }, 4000);
+
     setTimeout(() => {
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'ONLINE', rpoSeconds: 5 } : c));
-      setJobs(prev => prev.map(j => j.id === newJobId ? { ...j, status: 'SUCCESS', progressPercent: 100, completed: new Date().toLocaleTimeString() } : j));
+      setJobs(prev => prev.map(j => j.id === newJobId ? { ...j, status: 'SUCCESS', progressPercent: 100, dataProcessedMb: 42.1, completed: new Date().toLocaleTimeString() } : j));
       addToast('Backup Completed', `Successfully backed up ${client.hostname}.`, 'success');
     }, 6000);
   };

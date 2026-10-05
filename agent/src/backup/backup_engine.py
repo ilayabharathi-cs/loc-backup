@@ -173,6 +173,38 @@ class BackupEngine:
             last_progress_update = time.time()
             interrupted = False
 
+            def send_progress_update(curr_file_name: str, in_flight_bytes: int = 0):
+                nonlocal last_progress_update
+                now_t = time.time()
+                total_reported_bytes = bytes_uploaded + in_flight_bytes
+                last_progress_update = now_t
+                try:
+                    self.api_client.report_backup_progress(
+                        run_id,
+                        {
+                            "files_discovered": len(discovered_files),
+                            "files_uploaded": files_uploaded,
+                            "files_failed": files_failed,
+                            "bytes_total": total_bytes,
+                            "bytes_uploaded": total_reported_bytes,
+                            "current_file": curr_file_name,
+                            "error_count": error_count,
+                            "files_locked": files_locked,
+                            "files_vss_recovered": files_vss_recovered
+                        }
+                    )
+                except Exception:
+                    pass
+
+            def make_chunk_cb(f_name: str):
+                curr_file_chunk_bytes = [0]
+                def on_chunk(chunk_sz: int):
+                    nonlocal last_progress_update
+                    curr_file_chunk_bytes[0] += chunk_sz
+                    if time.time() - last_progress_update >= 0.5:
+                        send_progress_update(f_name, curr_file_chunk_bytes[0])
+                return on_chunk
+
             for idx, file_obj in enumerate(discovered_files):
                 if stop_event and stop_event.is_set():
                     self.logger.warning("Backup interrupted by service stop event.")
@@ -184,7 +216,11 @@ class BackupEngine:
                     interrupted = True
                     break
 
-                result = uploader.upload_file(file_obj, change_type="FULL")
+                result = uploader.upload_file(
+                    file_obj,
+                    change_type="FULL",
+                    progress_callback=make_chunk_cb(file_obj.file_name)
+                )
 
                 if result.status == "uploaded":
                     files_uploaded += 1
@@ -205,28 +241,57 @@ class BackupEngine:
                         f"File upload status '{result.status}' for '{result.file_name}': {result.error_message}"
                     )
 
-                # Periodically update progress every 3 seconds or on milestones
-                now = time.time()
-                if now - last_progress_update >= 3.0 or idx == len(discovered_files) - 1:
-                    last_progress_update = now
-                    try:
-                        self.api_client._make_request(
-                            "POST",
-                            f"/backups/runs/{run_id}/progress",
-                            {
-                                "files_discovered": len(discovered_files),
-                                "files_uploaded": files_uploaded,
-                                "files_failed": files_failed,
-                                "bytes_total": total_bytes,
-                                "bytes_uploaded": bytes_uploaded,
-                                "current_file": file_obj.file_name,
-                                "error_count": error_count,
-                                "files_locked": files_locked,
-                                "files_vss_recovered": files_vss_recovered
-                            }
+                send_progress_update(file_obj.file_name, 0)
+
+            # In-Flight Dynamic File Discovery: check if files were added or modified while backup was running
+            if not interrupted and not (stop_event and stop_event.is_set()):
+                for pass_i in range(3):
+                    new_scan = scanner.scan()
+                    processed_paths = {f.original_path: f for f in discovered_files}
+                    in_flight_added: List[DiscoveredFile] = []
+                    for nf in new_scan:
+                        if not nf.is_accessible:
+                            continue
+                        if nf.original_path not in processed_paths:
+                            in_flight_added.append(nf)
+                        else:
+                            old_f = processed_paths[nf.original_path]
+                            if nf.modified_time != old_f.modified_time or nf.size_bytes != old_f.size_bytes:
+                                in_flight_added.append(nf)
+
+                    if not in_flight_added:
+                        break
+
+                    self.logger.info(
+                        f"In-Flight Update: Detected {len(in_flight_added)} new/modified files added during backup. "
+                        f"Bringing into current backup run (pass {pass_i + 1})..."
+                    )
+                    discovered_files.extend(in_flight_added)
+                    total_bytes += sum(f.size_bytes for f in in_flight_added)
+                    send_progress_update("Adding in-flight updates...", 0)
+
+                    for file_obj in in_flight_added:
+                        if stop_event and stop_event.is_set():
+                            interrupted = True
+                            break
+                        result = uploader.upload_file(
+                            file_obj,
+                            change_type="FULL",
+                            progress_callback=make_chunk_cb(file_obj.file_name)
                         )
-                    except Exception:
-                        pass
+                        if result.status in ("uploaded", "vss_recovered"):
+                            files_uploaded += 1
+                            if result.status == "vss_recovered":
+                                files_vss_recovered += 1
+                            bytes_uploaded += result.size_bytes
+                        elif result.status == "locked":
+                            files_locked += 1
+                            files_failed += 1
+                            error_count += 1
+                        else:
+                            files_failed += 1
+                            error_count += 1
+                        send_progress_update(file_obj.file_name, 0)
 
             if interrupted:
                 duration = round(time.time() - start_time, 2)
@@ -489,9 +554,46 @@ class BackupEngine:
             files_vss_recovered = 0
             bytes_uploaded = 0
             error_count = 0
-            files_to_upload = changes.files_to_upload
+            files_to_upload = list(changes.files_to_upload)
+            total_incremental_bytes = changes.total_logical_bytes
             last_progress_update = time.time()
             interrupted = False
+
+            def send_inc_progress(curr_file_name: str, in_flight_bytes: int = 0):
+                nonlocal last_progress_update
+                now_t = time.time()
+                total_reported_bytes = bytes_uploaded + in_flight_bytes
+                last_progress_update = now_t
+                try:
+                    self.api_client.report_backup_progress(
+                        run_id,
+                        {
+                            "files_discovered": len(discovered_files),
+                            "files_uploaded": files_uploaded,
+                            "files_failed": files_failed,
+                            "files_new": len(changes.new_files),
+                            "files_modified": len(changes.modified_files),
+                            "files_unchanged": len(changes.unchanged_files),
+                            "files_deleted": len(changes.deleted_files),
+                            "files_locked": files_locked,
+                            "files_vss_recovered": files_vss_recovered,
+                            "bytes_total": total_incremental_bytes,
+                            "bytes_uploaded": total_reported_bytes,
+                            "current_file": curr_file_name,
+                            "error_count": error_count
+                        }
+                    )
+                except Exception:
+                    pass
+
+            def make_inc_chunk_cb(f_name: str):
+                curr_chunk_bytes = [0]
+                def on_chunk(chunk_sz: int):
+                    nonlocal last_progress_update
+                    curr_chunk_bytes[0] += chunk_sz
+                    if time.time() - last_progress_update >= 0.5:
+                        send_inc_progress(f_name, curr_chunk_bytes[0])
+                return on_chunk
 
             if files_to_upload:
                 self.logger.info(f"Uploading {len(files_to_upload)} changed files...")
@@ -510,7 +612,8 @@ class BackupEngine:
                 self.logger.info(f"Uploading: {classified.file_name} ({classified.state.value})")
                 result = uploader.upload_file(
                     classified.discovered_file,
-                    change_type=classified.state.value
+                    change_type=classified.state.value,
+                    progress_callback=make_inc_chunk_cb(classified.file_name)
                 )
 
                 if result.status == "uploaded":
@@ -532,32 +635,62 @@ class BackupEngine:
                         f"File upload status '{result.status}' for '{result.file_name}': {result.error_message}"
                     )
 
-                # Periodically update progress
-                now = time.time()
-                if now - last_progress_update >= 3.0 or idx == len(files_to_upload) - 1:
-                    last_progress_update = now
-                    try:
-                        self.api_client._make_request(
-                            "POST",
-                            f"/backups/runs/{run_id}/progress",
-                            {
-                                "files_discovered": len(discovered_files),
-                                "files_uploaded": files_uploaded,
-                                "files_failed": files_failed,
-                                "files_new": len(changes.new_files),
-                                "files_modified": len(changes.modified_files),
-                                "files_unchanged": len(changes.unchanged_files),
-                                "files_deleted": len(changes.deleted_files),
-                                "files_locked": files_locked,
-                                "files_vss_recovered": files_vss_recovered,
-                                "bytes_total": changes.total_logical_bytes,
-                                "bytes_uploaded": bytes_uploaded,
-                                "current_file": classified.file_name,
-                                "error_count": error_count
-                            }
+                send_inc_progress(classified.file_name, 0)
+
+            # In-Flight Dynamic File Discovery for Incremental Backup:
+            # Check if any new files were placed in the folder while backup was uploading
+            if not interrupted and not (stop_event and stop_event.is_set()):
+                for pass_i in range(3):
+                    new_scan = scanner.scan()
+                    processed_paths = {c.discovered_file.original_path: c for c in files_to_upload}
+                    unchanged_paths = {u.discovered_file.original_path: u for u in changes.unchanged_files}
+
+                    in_flight_changes = detector.detect_changes(new_scan, baseline_manifest)
+                    in_flight_to_upload = []
+
+                    for nf in in_flight_changes.files_to_upload:
+                        orig = nf.discovered_file.original_path
+                        if orig not in processed_paths:
+                            in_flight_to_upload.append(nf)
+                        else:
+                            old_df = processed_paths[orig].discovered_file
+                            if nf.discovered_file.modified_time != old_df.modified_time or nf.discovered_file.size_bytes != old_df.size_bytes:
+                                in_flight_to_upload.append(nf)
+
+                    if not in_flight_to_upload:
+                        break
+
+                    self.logger.info(
+                        f"In-Flight Update: Detected {len(in_flight_to_upload)} new or modified files "
+                        f"added during incremental backup. Uploading now (pass {pass_i + 1})..."
+                    )
+                    files_to_upload.extend(in_flight_to_upload)
+                    total_incremental_bytes += sum(c.discovered_file.size_bytes for c in in_flight_to_upload)
+                    send_inc_progress("Syncing in-flight files...", 0)
+
+                    for classified in in_flight_to_upload:
+                        if stop_event and stop_event.is_set():
+                            interrupted = True
+                            break
+                        self.logger.info(f"Uploading in-flight file: {classified.file_name} ({classified.state.value})")
+                        result = uploader.upload_file(
+                            classified.discovered_file,
+                            change_type=classified.state.value,
+                            progress_callback=make_inc_chunk_cb(classified.file_name)
                         )
-                    except Exception:
-                        pass
+                        if result.status in ("uploaded", "vss_recovered"):
+                            files_uploaded += 1
+                            if result.status == "vss_recovered":
+                                files_vss_recovered += 1
+                            bytes_uploaded += result.size_bytes
+                        elif result.status == "locked":
+                            files_locked += 1
+                            files_failed += 1
+                            error_count += 1
+                        else:
+                            files_failed += 1
+                            error_count += 1
+                        send_inc_progress(classified.file_name, 0)
 
             if interrupted:
                 duration = round(time.time() - start_time, 2)

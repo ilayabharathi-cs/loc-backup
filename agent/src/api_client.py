@@ -269,6 +269,16 @@ class BackendApiClient:
             return res.get("data", {})
         raise ApiClientError(f"Failed to update run state: {res.get('error')}")
 
+    def report_backup_progress(self, run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Report live incremental/full backup progress to server."""
+        try:
+            res = self._make_request("POST", f"/backups/runs/{run_id}/progress", payload)
+            if res.get("success"):
+                return res.get("data", {})
+            return res
+        except Exception:
+            return {}
+
     def save_run_checkpoint(self, run_id: int, checkpoint_data: Dict[str, Any]) -> Dict[str, Any]:
         """Sync local checkpoint to server."""
         res = self._make_request("POST", f"/backups/runs/{run_id}/checkpoint", checkpoint_data)

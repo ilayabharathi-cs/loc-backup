@@ -11,9 +11,17 @@ def resolve_system_variables(raw_path: str) -> str:
     """Expand general environment variables (%SYSTEMDRIVE%, %PROGRAMDATA%, %TEMP%, etc.)."""
     if not raw_path:
         return ""
-    # Use os.path.expandvars to resolve %VAR%
-    expanded = os.path.expandvars(raw_path)
-    return expanded
+    # Support Windows %VAR% syntax cross-platform
+    def _replace_var(match):
+        var_name = match.group(1)
+        # Case-insensitive environment lookup
+        for k, v in os.environ.items():
+            if k.upper() == var_name.upper():
+                return v
+        return match.group(0)
+
+    expanded = re.sub(r'%([a-zA-Z0-9_]+)%', _replace_var, raw_path)
+    return os.path.expandvars(expanded)
 
 
 def resolve_path_for_user(raw_path: str, user: UserProfile) -> str:

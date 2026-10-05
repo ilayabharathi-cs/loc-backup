@@ -1,5 +1,6 @@
 import datetime
 import os
+import threading
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -348,17 +349,30 @@ def create_restore_job(
 
     # Execute if execute_now is True
     if execute_now:
-        try:
-            executor.execute_restore()
-        except Exception as e:
-            # If physical files not found for synthetic seed points, complete control-plane status
-            job.status = "completed"
-            job.started_at = now
-            job.completed_at = now + datetime.timedelta(seconds=2)
-            db.commit()
+        job.status = "RUNNING"
+        job.started_at = now
+        db.commit()
+        db.refresh(job)
+
+        def _bg_execute(job_id: int):
+            from app.database.session import SessionLocal
+            with SessionLocal() as bg_db:
+                bg_job = bg_db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
+                if not bg_job:
+                    return
+                bg_executor = RestoreExecutor(bg_db, bg_job)
+                try:
+                    bg_executor.execute_restore()
+                except Exception as e:
+                    bg_job.status = "FAILED"
+                    bg_job.error_message = str(e)
+                    bg_db.commit()
+
+        t = threading.Thread(target=_bg_execute, args=(job.id,), daemon=True)
+        t.start()
 
     db.refresh(job)
-    return ApiResponse(success=True, data=_to_job_response(job, db), message="Restore operation recorded and executed")
+    return ApiResponse(success=True, data=_to_job_response(job, db), message="Restore operation recorded and started")
 
 
 @router.post("/jobs/{restore_id}/start", response_model=ApiResponse[RestoreJobResponse])
@@ -378,9 +392,31 @@ def start_restore_job(
     if job.status == "CREATED":
         executor.validate_and_plan()
 
-    executor.execute_restore()
+    job.status = "RUNNING"
+    if not job.started_at:
+        job.started_at = datetime.datetime.now(datetime.timezone.utc)
+    db.commit()
     db.refresh(job)
-    return ApiResponse(success=True, data=_to_job_response(job, db), message=f"Restore job {job.restore_id} executed: {job.status}")
+
+    def _bg_execute_start(job_id: int):
+        from app.database.session import SessionLocal
+        with SessionLocal() as bg_db:
+            bg_job = bg_db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
+            if not bg_job:
+                return
+            bg_executor = RestoreExecutor(bg_db, bg_job)
+            try:
+                bg_executor.execute_restore()
+            except Exception as e:
+                bg_job.status = "FAILED"
+                bg_job.error_message = str(e)
+                bg_db.commit()
+
+    t = threading.Thread(target=_bg_execute_start, args=(job.id,), daemon=True)
+    t.start()
+
+    db.refresh(job)
+    return ApiResponse(success=True, data=_to_job_response(job, db), message=f"Restore job {job.restore_id} started")
 
 
 @router.post("/jobs/{restore_id}/pause", response_model=ApiResponse[RestoreJobResponse])
