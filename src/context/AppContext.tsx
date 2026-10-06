@@ -165,11 +165,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
 
+      // 4. Fetch Jobs
+      const jobsRes = await jobsApi.list();
+      let mappedJobs: BackupJob[] = [];
+      if (jobsRes.success && Array.isArray(jobsRes.data)) {
+        mappedJobs = jobsRes.data.map((j: JobApiData) => ({
+          id: j.job_id,
+          clientId: j.client_identifier || `PC-${j.client_id}`,
+          clientHostname: j.client_hostname || `CLIENT-${j.client_id}`,
+          policyName: j.policy_name || 'Windows User Data',
+          backupType: 'Incremental',
+          source: '%USERPROFILE%\\Documents, Desktop',
+          started: j.started_at ? new Date(j.started_at).toLocaleTimeString() : '',
+          completed: j.completed_at ? new Date(j.completed_at).toLocaleTimeString() : null,
+          duration: j.completed_at ? 'Completed' : 'Active',
+          dataProcessedMb: j.data_processed_mb || 0,
+          status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : 'RUNNING',
+          progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 0),
+          changeDetection: 'USN Journal (NTFS)',
+          transferSpeedMbps: 0
+        }));
+        setJobs(mappedJobs);
+      }
+
       // 2. Fetch Clients (Real Enrolled Devices)
       const clientsRes = await clientsApi.list();
       if (clientsRes.success && Array.isArray(clientsRes.data)) {
         const mappedClients: Client[] = clientsRes.data.map((c: ClientApiData) => {
           const statusUpper = c.status === 'active' ? 'ONLINE' : c.status === 'offline' ? 'OFFLINE' : c.status === 'disabled' ? 'WARNING' : 'ONLINE';
+          
+          const cidStr = `PC-${c.client_id}`;
+          const clientJobs = mappedJobs.filter((j: BackupJob) => j.clientId === cidStr || j.clientId === c.client_id);
+          const lastSuccess = clientJobs.filter((j: BackupJob) => j.status === 'SUCCESS').sort((a: BackupJob, b: BackupJob) => new Date(b.completed || '').getTime() - new Date(a.completed || '').getTime())[0];
 
           return {
             id: c.client_id,
@@ -182,7 +209,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ram: 'Detected RAM',
             status: statusUpper,
             lastSeen: c.last_seen ? new Date(c.last_seen).toLocaleTimeString() : 'Recently',
-            lastBackup: 'Never',
+            lastBackup: lastSuccess ? (lastSuccess.completed || 'Recently') : 'Never',
             rpoSeconds: 60,
             storageConsumedGb: 0.0,
             policyId: 'POL-001',
@@ -221,40 +248,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             description: p.description || '',
             protectedFolders: mappedProtected,
             customFolders: p.paths.filter((path: any) => path.path_type === 'custom' && !path.is_excluded).map((path: any) => path.path_value),
-          excludedPaths: p.paths.filter(path => path.is_excluded).map(path => path.path_value),
-          backupType: p.backup_type === 'full' ? 'Full' : 'Incremental',
-          changeDetection: p.change_detection === 'usn_journal' ? 'USN Journal' : 'File Watcher',
-          rpoTargetSeconds: p.rpo_target_seconds,
-          compressionEnabled: p.compression_enabled,
-          encryptionEnabled: p.encryption_enabled,
-          cpuLimitPercent: p.cpu_limit_percent,
-          networkLimitMbps: p.network_limit_mbps,
-          retentionDays: p.retention_days
-        };
+            excludedPaths: p.paths.filter((path: any) => path.is_excluded).map((path: any) => path.path_value),
+            backupType: p.backup_type === 'full' ? 'Full' : 'Incremental',
+            changeDetection: p.change_detection === 'usn_journal' ? 'USN Journal' : 'File Watcher',
+            rpoTargetSeconds: p.rpo_target_seconds,
+            compressionEnabled: p.compression_enabled,
+            encryptionEnabled: p.encryption_enabled,
+            cpuLimitPercent: p.cpu_limit_percent,
+            networkLimitMbps: p.network_limit_mbps,
+            retentionDays: p.retention_days
+          };
         });
         setPolicies(mappedPolicies);
-      }
-
-      // 4. Fetch Jobs
-      const jobsRes = await jobsApi.list();
-      if (jobsRes.success && Array.isArray(jobsRes.data)) {
-        const mappedJobs: BackupJob[] = jobsRes.data.map((j: JobApiData) => ({
-          id: j.job_id,
-          clientId: j.client_identifier || `PC-${j.client_id}`,
-          clientHostname: j.client_hostname || `CLIENT-${j.client_id}`,
-          policyName: j.policy_name || 'Windows User Data',
-          backupType: 'Incremental',
-          source: '%USERPROFILE%\\Documents, Desktop',
-          started: j.started_at ? new Date(j.started_at).toLocaleTimeString() : '',
-          completed: j.completed_at ? new Date(j.completed_at).toLocaleTimeString() : null,
-          duration: j.completed_at ? 'Completed' : 'Active',
-          dataProcessedMb: j.data_processed_mb || 0,
-          status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : 'RUNNING',
-          progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 0),
-          changeDetection: 'USN Journal (NTFS)',
-          transferSpeedMbps: 0
-        }));
-        setJobs(mappedJobs);
       }
 
       // 5. Fetch Storage

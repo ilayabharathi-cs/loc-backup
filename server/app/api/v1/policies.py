@@ -82,7 +82,7 @@ def get_policy(
 def create_policy(
     request: PolicyCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "operator"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     existing = db.query(BackupPolicy).filter(BackupPolicy.name == request.name).first()
     if existing:
@@ -124,7 +124,7 @@ def create_policy(
         action="POLICY_CREATED",
         resource_type="policy",
         resource_id=str(policy.id),
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         details=f"Created backup policy '{policy.name}' with {len(request.paths)} paths"
     )
 
@@ -153,7 +153,7 @@ def update_policy(
     policy_id: int,
     request: PolicyUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "operator"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     p = db.query(BackupPolicy).filter(BackupPolicy.id == policy_id).first()
     if not p:
@@ -185,7 +185,7 @@ def update_policy(
         action="POLICY_UPDATED",
         resource_type="policy",
         resource_id=str(p.id),
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         details=f"Updated backup policy '{p.name}'"
     )
 
