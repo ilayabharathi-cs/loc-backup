@@ -27,7 +27,16 @@ class FileScanner:
 
     def scan(self) -> List[DiscoveredFile]:
         """Scan all configured include roots and return a deduplicated list of discovered files."""
-        # 1. Attempt Native Windows Win32 scan if enabled and available
+        # 1. On Linux / POSIX platforms, utilize streaming scandir and device filtering
+        from agent.src.platform import get_platform_adapter
+        adapter = get_platform_adapter()
+        if adapter.os_name == "Linux":
+            return adapter.scan_directories(
+                include_paths=self.include_paths,
+                exclude_paths=list(self.exclude_paths)
+            )
+
+        # 2. Attempt Native Windows Win32 scan if enabled and available
         if self.use_native:
             bridge = get_native_bridge()
             if bridge.is_available:
@@ -47,8 +56,9 @@ class FileScanner:
                         f"Native scanner encountered error ({e}); falling back cleanly to Python scanner."
                     )
 
-        # 2. Pure Python fallback scanner
+        # 3. Pure Python fallback scanner
         return self._scan_python_fallback()
+
 
     def _scan_python_fallback(self) -> List[DiscoveredFile]:
         """Pure Python fallback directory scanning using os.walk."""

@@ -1,0 +1,46 @@
+[Unit]
+Description=RetroVault Lightweight Backup Agent
+Documentation=https://github.com/ilayabharathi-cs/retrovault
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=retrovault
+Group=retrovault
+
+# Working directory and execution path
+WorkingDirectory=/opt/retrovault
+ExecStart=/usr/bin/python3 -m agent.main --config /etc/retrovault/config.json
+
+# Automatic restart on failure with backoff
+Restart=on-failure
+RestartSec=10s
+RestartPreventExitStatus=0
+
+# Graceful termination
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Resource Bounds and Sandboxing (Lightweight Agent Principle)
+CPUQuota=50%
+MemoryMax=512M
+TasksMax=64
+Nice=10
+
+# Security Hardening & Least Privilege
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadOnlyPaths=/
+ReadWritePaths=/var/lib/retrovault /var/log/retrovault /run/retrovault
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+Environment=RETROVAULT_ENV=production
+
+[Install]
+WantedBy=multi-user.target

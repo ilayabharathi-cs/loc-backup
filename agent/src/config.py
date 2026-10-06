@@ -29,10 +29,12 @@ class AgentConfig(BaseModel):
     enable_vss: bool = Field(default=True, description="Enable Volume Shadow Copy Service integration")
     enable_usn_journal: bool = Field(default=True, description="Enable NTFS USN Journal optimization")
     chunk_size: int = Field(default=4194304, ge=65536, le=67108864, description="Chunk size in bytes for resumable upload")
+    max_workers: int = Field(default=2, ge=1, le=16, description="Bounded worker count for low resource usage")
     retry_backoff_max_seconds: int = Field(default=60, ge=1, le=600, description="Maximum exponential retry backoff delay")
     checkpoint_interval_seconds: int = Field(default=5, ge=1, le=120, description="Checkpoint flush interval in seconds")
     resume_interrupted_runs: bool = Field(default=True, description="Automatically resume interrupted runs on startup")
     state_dir: Optional[str] = Field(default=None, description="Custom state directory for checkpoints")
+
 
     @field_validator("server_url")
     @classmethod

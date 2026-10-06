@@ -370,9 +370,11 @@ def create_restore_job(
 
         t = threading.Thread(target=_bg_execute, args=(job.id,), daemon=True)
         t.start()
+        t.join(timeout=3.0)
 
     db.refresh(job)
     return ApiResponse(success=True, data=_to_job_response(job, db), message="Restore operation recorded and started")
+
 
 
 @router.post("/jobs/{restore_id}/start", response_model=ApiResponse[RestoreJobResponse])

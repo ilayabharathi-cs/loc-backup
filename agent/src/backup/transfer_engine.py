@@ -14,7 +14,7 @@ from agent.src.backup.hashing import calculate_file_sha256
 from agent.src.backup.retry_engine import RetryEngine
 from agent.src.backup.checkpoint_manager import CheckpointManager, BackupCheckpointData
 from agent.src.windows.locked_files import LockedFileHandler, FileLockState
-from agent.native.python.native_bridge import get_native_bridge
+from agent.src.platform import get_platform_adapter, PlatformAdapter
 from agent.src.logger import get_logger
 
 
@@ -33,7 +33,8 @@ class TransferEngine:
         api_client: BackendApiClient,
         checkpoint_manager: CheckpointManager,
         retry_engine: Optional[RetryEngine] = None,
-        locked_file_handler: Optional[LockedFileHandler] = None
+        locked_file_handler: Optional[Any] = None,
+        platform_adapter: Optional[PlatformAdapter] = None
     ):
         self.config = config
         self.client_id = client_id
@@ -46,8 +47,12 @@ class TransferEngine:
             max_delay=float(config.retry_backoff_max_seconds),
             factor=2.0
         )
-        self.locked_file_handler = locked_file_handler or LockedFileHandler()
+        self.platform_adapter = platform_adapter or get_platform_adapter()
+        self.locked_file_handler = locked_file_handler or (
+            LockedFileHandler() if self.platform_adapter.os_name == "Windows" else None
+        )
         self.logger = get_logger()
+
 
     def transfer_file(
         self,
@@ -63,8 +68,8 @@ class TransferEngine:
         orig_path = file_info.original_path
 
         # 1. Inspect accessibility and locked state
-        inspection = self.locked_file_handler.inspect_file(orig_path, file_info.relative_path)
-        if inspection.state == FileLockState.LOCKED:
+        inspection = self.platform_adapter.inspect_file_for_read(orig_path, file_info.relative_path)
+        if inspection.is_locked:
             return FileUploadResult(
                 file_name=file_info.file_name,
                 original_path=orig_path,
@@ -72,13 +77,13 @@ class TransferEngine:
                 status="locked",
                 error_message=inspection.error_message or "File is locked by another process"
             )
-        elif inspection.state in (FileLockState.ACCESS_DENIED, FileLockState.NOT_FOUND):
+        elif not inspection.is_accessible:
             return FileUploadResult(
                 file_name=file_info.file_name,
                 original_path=orig_path,
                 size_bytes=0,
                 status="failed",
-                error_message=inspection.error_message or f"File inaccessible ({inspection.state.value})"
+                error_message=inspection.error_message or "File is inaccessible"
             )
 
         effective_path = inspection.effective_path
@@ -99,7 +104,16 @@ class TransferEngine:
             )
 
         # 3. Verify file did not change during reading (CHANGED_DURING_BACKUP protection)
-        if not self.locked_file_handler.verify_consistency_after_read(effective_path, file_size, file_mtime):
+        if self.locked_file_handler and hasattr(self.locked_file_handler, "verify_consistency_after_read"):
+            consistent = self.locked_file_handler.verify_consistency_after_read(effective_path, file_size, file_mtime)
+        else:
+            try:
+                st = os.stat(effective_path)
+                consistent = (st.st_size == file_size and abs(st.st_mtime - file_mtime) < 0.001)
+            except OSError:
+                consistent = False
+
+        if not consistent:
             return FileUploadResult(
                 file_name=file_info.file_name,
                 original_path=orig_path,
@@ -108,6 +122,7 @@ class TransferEngine:
                 status="changed_during_backup",
                 error_message="File modified while calculating checksum"
             )
+
 
         # 4. Initiate or query upload session on server
         mtime_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(file_mtime))
@@ -161,83 +176,63 @@ class TransferEngine:
             bytes_uploaded += max(0, last_chunk_sz)
 
         try:
-            file_handle = None
-            try:
-                file_handle = open(effective_path, "rb")
-            except PermissionError:
-                if not get_native_bridge().is_available:
-                    raise
-
-            try:
-                for chunk_idx in range(total_chunks):
-                    if stop_event and stop_event.is_set():
-                        self.logger.info(f"Transfer interrupted for '{file_info.file_name}' at chunk {chunk_idx}")
-                        self._persist_checkpoint(
-                            file_info=file_info,
-                            session_id=session_id,
-                            chunk_idx=chunk_idx,
-                            bytes_uploaded=bytes_uploaded,
-                            state="INTERRUPTED"
-                        )
-                        return FileUploadResult(
-                            file_name=file_info.file_name,
-                            original_path=orig_path,
-                            size_bytes=file_size,
-                            status="interrupted",
-                            error_message="Backup was interrupted by stop signal"
-                        )
-
-                    # Skip already confirmed chunks (0 bytes uploaded over network!)
-                    if chunk_idx in confirmed_chunks:
-                        if progress_callback:
-                            c_sz = chunk_size if chunk_idx < total_chunks - 1 else (file_size - (chunk_idx * chunk_size))
-                            progress_callback(c_sz)
-                        continue
-
-                    # Read chunk bytes
-                    offset = chunk_idx * chunk_size
-                    actual_read_size = chunk_size if chunk_idx < total_chunks - 1 else (file_size - offset)
-                    if file_handle is not None:
-                        try:
-                            file_handle.seek(offset)
-                            chunk_bytes = file_handle.read(actual_read_size)
-                        except (PermissionError, OSError):
-                            chunk_bytes = get_native_bridge().read_file_chunk(effective_path, offset, actual_read_size)
-                    else:
-                        chunk_bytes = get_native_bridge().read_file_chunk(effective_path, offset, actual_read_size)
-                    chunk_sha = hashlib.sha256(chunk_bytes).hexdigest()
-
-                    # Upload chunk with retry engine
-                    self.retry_engine.execute_with_retry(
-                        lambda c_idx=chunk_idx, c_data=chunk_bytes, c_hash=chunk_sha, c_off=offset: self.api_client.upload_chunk(
-                            session_id=session_id,
-                            chunk_index=c_idx,
-                            chunk_bytes=c_data,
-                            chunk_sha256=c_hash,
-                            offset=c_off
-                        ),
-                        operation_name=f"Upload chunk {chunk_idx}/{total_chunks} for '{file_info.file_name}'"
-                    )
-
-                    confirmed_chunks.add(chunk_idx)
-                    bytes_uploaded += len(chunk_bytes)
-                    if progress_callback:
-                        progress_callback(len(chunk_bytes))
-
-                    # Persist local checkpoint
+            for chunk_idx in range(total_chunks):
+                if stop_event and stop_event.is_set():
+                    self.logger.info(f"Transfer interrupted for '{file_info.file_name}' at chunk {chunk_idx}")
                     self._persist_checkpoint(
                         file_info=file_info,
                         session_id=session_id,
                         chunk_idx=chunk_idx,
                         bytes_uploaded=bytes_uploaded,
-                        state="BACKING_UP"
+                        state="INTERRUPTED"
                     )
-            finally:
-                if file_handle is not None:
-                    try:
-                        file_handle.close()
-                    except Exception:
-                        pass
+                    return FileUploadResult(
+                        file_name=file_info.file_name,
+                        original_path=orig_path,
+                        size_bytes=file_size,
+                        status="interrupted",
+                        error_message="Backup was interrupted by stop signal"
+                    )
+
+                # Skip already confirmed chunks (0 bytes uploaded over network!)
+                if chunk_idx in confirmed_chunks:
+                    if progress_callback:
+                        c_sz = chunk_size if chunk_idx < total_chunks - 1 else (file_size - (chunk_idx * chunk_size))
+                        progress_callback(c_sz)
+                    continue
+
+                # Read bounded chunk bytes via platform adapter
+                offset = chunk_idx * chunk_size
+                actual_read_size = chunk_size if chunk_idx < total_chunks - 1 else (file_size - offset)
+                chunk_bytes = self.platform_adapter.read_file_chunk(effective_path, offset, actual_read_size)
+                chunk_sha = hashlib.sha256(chunk_bytes).hexdigest()
+
+                # Upload chunk with retry engine
+                self.retry_engine.execute_with_retry(
+                    lambda c_idx=chunk_idx, c_data=chunk_bytes, c_hash=chunk_sha, c_off=offset: self.api_client.upload_chunk(
+                        session_id=session_id,
+                        chunk_index=c_idx,
+                        chunk_bytes=c_data,
+                        chunk_sha256=c_hash,
+                        offset=c_off
+                    ),
+                    operation_name=f"Upload chunk {chunk_idx}/{total_chunks} for '{file_info.file_name}'"
+                )
+
+                confirmed_chunks.add(chunk_idx)
+                bytes_uploaded += len(chunk_bytes)
+                if progress_callback:
+                    progress_callback(len(chunk_bytes))
+
+                # Persist local checkpoint
+                self._persist_checkpoint(
+                    file_info=file_info,
+                    session_id=session_id,
+                    chunk_idx=chunk_idx,
+                    bytes_uploaded=bytes_uploaded,
+                    state="BACKING_UP"
+                )
+
 
         except Exception as e:
             self.logger.error(f"Error transferring chunks for '{file_info.file_name}': {e}")
@@ -282,8 +277,9 @@ class TransferEngine:
             size_bytes=file_size,
             sha256=full_sha256,
             storage_object=storage_obj,
-            status="vss_recovered" if inspection.is_vss_used else "uploaded"
+            status="vss_recovered" if getattr(inspection, "is_vss_used", False) else "uploaded"
         )
+
 
     def _persist_checkpoint(
         self,

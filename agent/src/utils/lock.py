@@ -24,8 +24,12 @@ class BackupLock:
         if custom_dir:
             lock_dir = custom_dir
         else:
-            prog_data = get_programdata_path()
-            lock_dir = os.path.join(prog_data, "RetroVault", "agent", "locks")
+            try:
+                from agent.src.platform import get_platform_adapter
+                lock_dir = get_platform_adapter().get_lock_directory()
+            except Exception:
+                prog_data = get_programdata_path()
+                lock_dir = os.path.join(prog_data, "RetroVault", "agent", "locks")
 
         try:
             os.makedirs(lock_dir, exist_ok=True)

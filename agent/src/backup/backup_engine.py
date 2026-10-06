@@ -28,11 +28,20 @@ from agent.src.backup.run_state import RunState, RunStateMachine
 from agent.src.backup.checkpoint_manager import CheckpointManager
 from agent.src.backup.retry_engine import RetryEngine
 from agent.src.backup.transfer_engine import TransferEngine
-from agent.src.windows.vss import VSSProvider, get_vss_provider
-from agent.src.windows.usn_journal import USNJournalProvider
-from agent.src.windows.locked_files import LockedFileHandler, FileLockState
+from agent.src.platform import get_platform_adapter, PlatformAdapter
 from agent.src.utils.lock import BackupLock, BackupConcurrencyError
 from agent.src.logger import get_logger
+
+try:
+    from agent.src.windows.vss import VSSProvider, get_vss_provider
+    from agent.src.windows.usn_journal import USNJournalProvider
+    from agent.src.windows.locked_files import LockedFileHandler, FileLockState
+except ImportError:
+    VSSProvider = None  # type: ignore
+    get_vss_provider = None  # type: ignore
+    USNJournalProvider = None  # type: ignore
+    LockedFileHandler = None  # type: ignore
+    FileLockState = None  # type: ignore
 
 
 class BackupEngine:
@@ -43,26 +52,36 @@ class BackupEngine:
         config: AgentConfig,
         identity: DeviceIdentity,
         api_client: BackendApiClient,
-        max_workers: int = 2
+        max_workers: int = 2,
+        platform_adapter: Optional[PlatformAdapter] = None
     ):
         self.config = config
         self.identity = identity
         self.api_client = api_client
         self.max_workers = max_workers
+        self.platform = platform_adapter or get_platform_adapter()
         self.logger = get_logger()
         self.is_running = False
 
-        # V4 Reliability Components
+        # V4/Cross-platform Reliability Components
         self.checkpoint_manager = CheckpointManager(config)
         self.backup_lock = BackupLock()
-        self.vss_provider = get_vss_provider(getattr(config, "consistency_mode", "LIVE"))
-        self.usn_provider = USNJournalProvider()
-        self.locked_file_handler = LockedFileHandler(vss_provider=self.vss_provider)
+
+        if self.platform.os_name == "Windows" and get_vss_provider:
+            self.vss_provider = get_vss_provider(getattr(config, "consistency_mode", "LIVE"))
+            self.usn_provider = USNJournalProvider() if USNJournalProvider else None
+            self.locked_file_handler = LockedFileHandler(vss_provider=self.vss_provider) if LockedFileHandler else None
+        else:
+            self.vss_provider = None
+            self.usn_provider = None
+            self.locked_file_handler = None
+
         self.retry_engine = RetryEngine(
             base_delay=1.0,
             max_delay=float(getattr(config, "retry_backoff_max_seconds", 30.0)),
             factor=2.0
         )
+
 
     def run_full_backup(
         self,
@@ -160,7 +179,8 @@ class BackupEngine:
                 api_client=self.api_client,
                 checkpoint_manager=self.checkpoint_manager,
                 retry_engine=self.retry_engine,
-                locked_file_handler=self.locked_file_handler
+                locked_file_handler=self.locked_file_handler,
+                platform_adapter=self.platform
             )
             uploader.transfer_engine = transfer_engine
 
@@ -440,7 +460,7 @@ class BackupEngine:
 
             # STEP 2: Scan current filesystem (with USN Journal candidate path acceleration if requested)
             self.logger.info("Scanning...")
-            if change_detection_mode == "usn" or getattr(self.config, "enable_usn_journal", False):
+            if self.usn_provider and (change_detection_mode == "usn" or getattr(self.config, "enable_usn_journal", False)):
                 for vp in resolved_policy.valid_paths:
                     vol = os.path.splitdrive(vp)[0]
                     if vol:
@@ -544,7 +564,8 @@ class BackupEngine:
                 api_client=self.api_client,
                 checkpoint_manager=self.checkpoint_manager,
                 retry_engine=self.retry_engine,
-                locked_file_handler=self.locked_file_handler
+                locked_file_handler=self.locked_file_handler,
+                platform_adapter=self.platform
             )
             uploader.transfer_engine = transfer_engine
 

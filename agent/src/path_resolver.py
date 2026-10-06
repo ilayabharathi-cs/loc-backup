@@ -56,13 +56,13 @@ def resolve_universal_path(raw_path: str, profiles: Optional[List[UserProfile]] 
 
     trimmed = raw_path.strip()
     userprofile_pattern = re.compile(r"%USERPROFILE%", re.IGNORECASE)
+    linux_user_pattern = re.compile(r"^/home/(?:<user>|<username>|\$USER)", re.IGNORECASE)
 
     if userprofile_pattern.search(trimmed):
         if profiles is None:
             profiles = discover_user_profiles()
 
         if not profiles:
-            # Fallback to current user's home directory
             home = os.path.expanduser("~")
             fallback_user = UserProfile(username=os.path.basename(home), profile_path=home)
             return [resolve_path_for_user(trimmed, fallback_user)]
@@ -72,7 +72,34 @@ def resolve_universal_path(raw_path: str, profiles: Optional[List[UserProfile]] 
             path_for_user = resolve_path_for_user(trimmed, user)
             resolved_paths.append(path_for_user)
         return resolved_paths
+
+    elif linux_user_pattern.search(trimmed) or "<user>" in trimmed.lower():
+        # Linux /home/<user>/... dynamic user path resolution
+        if profiles is None:
+            profiles = discover_user_profiles()
+
+        if not profiles:
+            home = os.path.expanduser("~")
+            fallback_user = UserProfile(username=os.path.basename(home), profile_path=home)
+            profiles = [fallback_user]
+
+        resolved_paths: List[str] = []
+        for user in profiles:
+            # Replace /home/<user> or <user> with actual user profile path
+            sub_path = re.sub(r"^/home/(?:<user>|<username>|\$USER)", user.profile_path, trimmed, flags=re.IGNORECASE)
+            sub_path = re.sub(r"<user>", user.username, sub_path, flags=re.IGNORECASE)
+            canon = canonicalize_path(os.path.expandvars(sub_path))
+            resolved_paths.append(canon)
+        return resolved_paths
+
+    elif trimmed.startswith("~/") or trimmed == "~":
+        # Expand user home cross-platform
+        home = os.path.expanduser("~")
+        sub_path = os.path.join(home, trimmed[2:]) if len(trimmed) > 2 else home
+        return [canonicalize_path(sub_path)]
+
     else:
-        # Non-user specific path (e.g. %PROGRAMDATA%, %TEMP%, D:\Data)
+        # Non-user specific path (e.g. %PROGRAMDATA%, /var/data, D:\Data)
         expanded = resolve_system_variables(trimmed)
         return [canonicalize_path(expanded)]
+
