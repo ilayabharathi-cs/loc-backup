@@ -94,7 +94,7 @@ def agent_heartbeat(request: AgentHeartbeatRequest, db: Session = Depends(get_db
         client.ip_address = request.ip_address
     if request.agent_version:
         client.agent_version = request.agent_version
-    if client.status != "disabled" and request.status:
+    if client.status not in ["disabled", "disconnected"] and request.status:
         client.status = request.status
 
     db.commit()

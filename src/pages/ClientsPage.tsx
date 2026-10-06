@@ -12,7 +12,7 @@ import { ClientDetailDialog } from '../components/dialogs/ClientDetailDialog';
 import { ComputerIcon, BackupTapeIcon, RestoreArrowIcon, ActivityLogIcon, ShieldCheckIcon } from '../components/win95/WinIcons';
 
 export const ClientsPage: React.FC = () => {
-  const { clients, triggerBackup, disconnectClient, addToast } = useApp();
+  const { clients, triggerBackup, disconnectClient, deleteClient, addToast } = useApp();
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -82,6 +82,16 @@ export const ClientsPage: React.FC = () => {
       label: 'Disconnect Agent...',
       icon: <ActivityLogIcon size={14} />,
       action: () => disconnectClient(client.id),
+    },
+    { divider: true, label: '', action: () => {} },
+    {
+      label: 'Remove Client',
+      icon: <span style={{ color: '#cc0000', fontWeight: 'bold' }}>X</span>,
+      action: () => {
+        if (window.confirm(`Are you sure you want to completely remove ${client.id}?`)) {
+          deleteClient(client.id);
+        }
+      },
     },
   ];
 

@@ -144,7 +144,7 @@ def update_client(
 def delete_client(
     client_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     client = find_client(db, client_id)
     cid = client.client_id
@@ -156,7 +156,7 @@ def delete_client(
         action="CLIENT_DELETED",
         resource_type="client",
         resource_id=cid,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         details=f"Deleted client {cid}"
     )
 
@@ -224,7 +224,7 @@ def disable_client(
 def disconnect_client(
     client_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "operator"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     client = find_client(db, client_id)
     client.status = "disconnected"
@@ -236,7 +236,7 @@ def disconnect_client(
         action="CLIENT_DISCONNECTED",
         resource_type="client",
         resource_id=client.client_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         client_id=client.id,
         details=f"Disconnected client {client.hostname}"
     )

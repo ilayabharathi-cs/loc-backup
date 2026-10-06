@@ -37,6 +37,11 @@ export const jobsApi = {
     const res = await apiClient.post(`/jobs/${jobId}/cancel`);
     return res.data;
   },
+  
+  pause: async (jobId: string) => {
+    const res = await apiClient.post(`/jobs/${jobId}/pause`);
+    return res.data;
+  },
 
   retry: async (jobId: string) => {
     const res = await apiClient.post(`/jobs/${jobId}/retry`);

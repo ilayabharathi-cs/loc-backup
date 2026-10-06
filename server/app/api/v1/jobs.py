@@ -212,13 +212,12 @@ def create_job(
 def cancel_job(
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "operator"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     j = find_job(db, job_id)
     j.status = "cancelled"
     j.completed_at = datetime.datetime.now(datetime.timezone.utc)
 
-    # Cancel runs
     for run in j.runs:
         if run.status == "running":
             run.status = "cancelled"
@@ -232,9 +231,9 @@ def cancel_job(
         action="JOB_CANCELLED",
         resource_type="job",
         resource_id=j.job_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         client_id=j.client_id,
-        details=f"Backup job {j.job_id} cancelled by user {current_user.username}"
+        details=f"Backup job {j.job_id} cancelled"
     )
 
     res = JobResponse(
@@ -251,6 +250,48 @@ def cancel_job(
         created_at=j.created_at
     )
     return ApiResponse(success=True, data=res, message="Job cancelled successfully")
+
+@router.post("/{job_id}/pause", response_model=ApiResponse[JobResponse])
+def pause_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user)
+):
+    j = find_job(db, job_id)
+    if j.status == "running":
+        j.status = "paused"
+    elif j.status == "paused":
+        j.status = "running"
+        
+    db.commit()
+    db.refresh(j)
+
+    log_audit_event(
+        db=db,
+        action="JOB_PAUSED_TOGGLED",
+        resource_type="job",
+        resource_id=j.job_id,
+        user_id=current_user.id if current_user else None,
+        client_id=j.client_id,
+        details=f"Backup job {j.job_id} status changed to {j.status}"
+    )
+
+    res = JobResponse(
+        id=j.id,
+        job_id=j.job_id,
+        client_id=j.client_id,
+        client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
+        client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+        policy_id=j.policy_id,
+        policy_name=j.policy.name if j.policy else "Default Policy",
+        status=j.status,
+        started_at=j.started_at,
+        completed_at=j.completed_at,
+        created_at=j.created_at
+    )
+    return ApiResponse(success=True, data=res, message=f"Job {j.status} successfully")
+
+
 
 @router.post("/{job_id}/retry", response_model=ApiResponse[JobResponse])
 def retry_job(

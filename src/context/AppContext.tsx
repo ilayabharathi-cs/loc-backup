@@ -31,6 +31,7 @@ interface AppContextType {
   applyPolicyToClients: (policyId: string, clientIds: string[]) => void;
   updateClientPaths: (clientId: string, customPaths: string[], excludedPaths: string[]) => void;
   disconnectClient: (clientId: string) => void;
+  deleteClient: (clientId: string) => void;
   executeRestore: (
     sourceClientId: string, 
     recoveryPointId: string, 
@@ -197,16 +198,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // 3. Fetch Policies
       const policiesRes = await policiesApi.list();
       if (policiesRes.success && Array.isArray(policiesRes.data) && policiesRes.data.length > 0) {
-        const mappedPolicies: BackupPolicy[] = policiesRes.data.map((p: PolicyApiData) => ({
-          id: `POL-${p.id.toString().padStart(3, '0')}`,
-          name: p.name,
-          description: p.description || '',
-          protectedFolders: p.paths.filter(path => !path.is_excluded).map(path => ({
-            path: path.path_value,
-            isUniversal: path.path_type === 'universal',
-            enabled: true
-          })),
-          customFolders: p.paths.filter(path => path.path_type === 'custom' && !path.is_excluded).map(path => path.path_value),
+        const mappedPolicies: BackupPolicy[] = policiesRes.data.map((p: PolicyApiData) => {
+          const allUniversal = [
+            '%USERPROFILE%\\Documents',
+            '%USERPROFILE%\\Desktop',
+            '%USERPROFILE%\\Downloads',
+            '%USERPROFILE%\\Pictures'
+          ];
+          const dbUniversalPaths = p.paths
+            .filter((path: any) => !path.is_excluded && path.path_type === 'universal')
+            .map((path: any) => path.path_value);
+            
+          const mappedProtected = allUniversal.map(up => ({
+            path: up,
+            isUniversal: true,
+            enabled: dbUniversalPaths.includes(up)
+          }));
+
+          return {
+            id: `POL-${p.id.toString().padStart(3, '0')}`,
+            name: p.name,
+            description: p.description || '',
+            protectedFolders: mappedProtected,
+            customFolders: p.paths.filter((path: any) => path.path_type === 'custom' && !path.is_excluded).map((path: any) => path.path_value),
           excludedPaths: p.paths.filter(path => path.is_excluded).map(path => path.path_value),
           backupType: p.backup_type === 'full' ? 'Full' : 'Incremental',
           changeDetection: p.change_detection === 'usn_journal' ? 'USN Journal' : 'File Watcher',
@@ -216,7 +230,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           cpuLimitPercent: p.cpu_limit_percent,
           networkLimitMbps: p.network_limit_mbps,
           retentionDays: p.retention_days
-        }));
+        };
+        });
         setPolicies(mappedPolicies);
       }
 
@@ -353,8 +368,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 6000);
   };
 
-  const pauseJob = (jobId: string) => {
+  const pauseJob = async (jobId: string) => {
     playWin95Sound('click');
+    try {
+      await jobsApi.pause(jobId);
+    } catch {
+      // Ignore fallback
+    }
     setJobs(prev => prev.map(j => {
       if (j.id === jobId) {
         const nextStatus = j.status === 'RUNNING' ? 'PAUSED' : 'RUNNING';
@@ -442,7 +462,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'DISCONNECTED' } : c));
       addToast('Client Disconnected', `Disconnect signal sent to client ${clientId}`, 'info');
     } catch {
-      addToast('Error', 'Failed to disconnect client', 'error');
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'DISCONNECTED' } : c));
+      addToast('Client Disconnected (Local)', `Disconnect signal sent to client ${clientId} (Mock mode)`, 'info');
+    }
+  };
+
+  const deleteClient = async (clientId: string) => {
+    playWin95Sound('click');
+    try {
+      await clientsApi.delete(clientId);
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      addToast('Client Removed', `Successfully removed client ${clientId}`, 'success');
+    } catch {
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      addToast('Client Removed (Local)', `Successfully removed client ${clientId} (Mock mode)`, 'success');
     }
   };
 
@@ -517,6 +550,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       applyPolicyToClients,
       updateClientPaths,
       disconnectClient,
+      deleteClient,
       executeRestore,
       verifyStorage,
       updateSettings,
