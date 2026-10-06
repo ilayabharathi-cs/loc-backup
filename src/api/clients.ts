@@ -51,6 +51,11 @@ export const clientsApi = {
     return res.data;
   },
 
+  disconnect: async (clientId: string) => {
+    const res = await apiClient.post(`/clients/${clientId}/disconnect`);
+    return res.data;
+  },
+
   triggerBackup: async (clientId: string) => {
     const res = await apiClient.post(`/clients/${clientId}/backup`);
     return res.data;

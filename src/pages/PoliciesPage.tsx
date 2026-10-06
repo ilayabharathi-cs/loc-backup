@@ -177,8 +177,8 @@ export const PoliciesPage: React.FC = () => {
                 name: 'New Custom Enterprise Policy',
                 description: 'Custom protection profile',
                 protectedFolders: [
-                  { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: true },
-                  { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: true }
+                  { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: false },
+                  { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: false }
                 ],
                 customFolders: [],
                 excludedPaths: ['%TEMP%', '*.tmp'],

@@ -30,6 +30,7 @@ interface AppContextType {
   updatePolicy: (policy: BackupPolicy) => void;
   applyPolicyToClients: (policyId: string, clientIds: string[]) => void;
   updateClientPaths: (clientId: string, customPaths: string[], excludedPaths: string[]) => void;
+  disconnectClient: (clientId: string) => void;
   executeRestore: (
     sourceClientId: string, 
     recoveryPointId: string, 
@@ -185,7 +186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             storageConsumedGb: 0.0,
             policyId: 'POL-001',
             policyName: 'Windows User Data',
-            universalPaths: ['%USERPROFILE%\\Documents', '%USERPROFILE%\\Desktop'],
+            universalPaths: [],
             customPaths: [],
             excludedPaths: ['%TEMP%', '*.tmp']
           };
@@ -379,13 +380,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     playWin95Sound('click');
     try {
       const numId = parseInt(updated.id.replace(/\D/g, ''), 10) || 1;
+      
+      const apiPaths: any[] = [];
+      updated.protectedFolders.forEach(f => {
+        if (f.enabled) {
+          apiPaths.push({ path_type: 'universal', path_value: f.path, is_excluded: false });
+        }
+      });
+      updated.customFolders.forEach(p => {
+        apiPaths.push({ path_type: 'custom', path_value: p, is_excluded: false });
+      });
+      updated.excludedPaths.forEach(p => {
+        apiPaths.push({ path_type: 'universal', path_value: p, is_excluded: true });
+      });
+
       await policiesApi.update(numId, {
         name: updated.name,
         description: updated.description,
         rpo_target_seconds: updated.rpoTargetSeconds,
         retention_days: updated.retentionDays,
         cpu_limit_percent: updated.cpuLimitPercent,
-        network_limit_mbps: updated.networkLimitMbps
+        network_limit_mbps: updated.networkLimitMbps,
+        paths: apiPaths
       });
     } catch {
       // Fallback
@@ -417,6 +433,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     playWin95Sound('click');
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, customPaths, excludedPaths } : c));
     addToast('Client Updated', `Custom path configuration updated for client ${clientId}`, 'info');
+  };
+
+  const disconnectClient = async (clientId: string) => {
+    playWin95Sound('click');
+    try {
+      await clientsApi.disconnect(clientId);
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'DISCONNECTED' } : c));
+      addToast('Client Disconnected', `Disconnect signal sent to client ${clientId}`, 'info');
+    } catch {
+      addToast('Error', 'Failed to disconnect client', 'error');
+    }
   };
 
   const executeRestore = async (
@@ -489,6 +516,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatePolicy,
       applyPolicyToClients,
       updateClientPaths,
+      disconnectClient,
       executeRestore,
       verifyStorage,
       updateSettings,

@@ -12,7 +12,7 @@ import { ClientDetailDialog } from '../components/dialogs/ClientDetailDialog';
 import { ComputerIcon, BackupTapeIcon, RestoreArrowIcon, ActivityLogIcon, ShieldCheckIcon } from '../components/win95/WinIcons';
 
 export const ClientsPage: React.FC = () => {
-  const { clients, triggerBackup, addToast } = useApp();
+  const { clients, triggerBackup, disconnectClient, addToast } = useApp();
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -76,6 +76,12 @@ export const ClientsPage: React.FC = () => {
       label: 'Client Properties...',
       icon: <ComputerIcon size={14} />,
       action: () => setDetailModalClient(client),
+    },
+    { divider: true, label: '', action: () => {} },
+    {
+      label: 'Disconnect Agent...',
+      icon: <ActivityLogIcon size={14} />,
+      action: () => disconnectClient(client.id),
     },
   ];
 
@@ -179,6 +185,13 @@ export const ClientsPage: React.FC = () => {
             title="Inspect properties and protected paths"
           >
             Details
+          </WinButton>
+          <WinButton
+            size="sm"
+            onClick={() => disconnectClient(client.id)}
+            title="Disconnect and shut down agent"
+          >
+            Stop
           </WinButton>
         </div>
       ),

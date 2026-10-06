@@ -67,6 +67,13 @@ class HeartbeatWorker:
             self.last_successful_heartbeat = datetime.datetime.now(datetime.timezone.utc)
             self.consecutive_failures = 0
             self.logger.debug(f"Heartbeat acknowledged by server: {res}")
+            
+            # Check if server requested agent disconnect/shutdown
+            if res.get("status") == "disconnected":
+                self.logger.info("Server initiated disconnect. Shutting down agent...")
+                self.stop_event.set()
+                return False
+                
             return True
         except ApiClientError as e:
             self.consecutive_failures += 1

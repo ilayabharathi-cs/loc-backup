@@ -220,6 +220,34 @@ def disable_client(
         message="Client disabled successfully"
     )
 
+@router.post("/{client_id}/disconnect", response_model=ApiResponse[ClientResponse])
+def disconnect_client(
+    client_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "operator"]))
+):
+    client = find_client(db, client_id)
+    client.status = "disconnected"
+    db.commit()
+    db.refresh(client)
+
+    log_audit_event(
+        db=db,
+        action="CLIENT_DISCONNECTED",
+        resource_type="client",
+        resource_id=client.client_id,
+        user_id=current_user.id,
+        client_id=client.id,
+        details=f"Disconnected client {client.hostname}"
+    )
+
+    return ApiResponse(
+        success=True,
+        data=ClientResponse.model_validate(client),
+        message="Client disconnected successfully"
+    )
+
+
 @router.post("/{client_id}/backup", response_model=ApiResponse[dict])
 def trigger_client_backup(
     client_id: str,

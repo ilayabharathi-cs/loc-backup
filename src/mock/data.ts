@@ -13,10 +13,10 @@ export const INITIAL_POLICIES: BackupPolicy[] = [
     name: 'Windows User Data',
     description: 'Standard enterprise workstation policy safeguarding essential user directories',
     protectedFolders: [
-      { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: true },
-      { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: true },
-      { path: '%USERPROFILE%\\Downloads', isUniversal: true, enabled: true },
-      { path: '%USERPROFILE%\\Pictures', isUniversal: true, enabled: true }
+      { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: false },
+      { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: false },
+      { path: '%USERPROFILE%\\Downloads', isUniversal: true, enabled: false },
+      { path: '%USERPROFILE%\\Pictures', isUniversal: true, enabled: false }
     ],
     customFolders: [],
     excludedPaths: ['%TEMP%', '%LOCALAPPDATA%\\Temp', 'C:\\Windows\\Temp', '*.tmp', '*.log', '*.cache'],
@@ -35,8 +35,8 @@ export const INITIAL_POLICIES: BackupPolicy[] = [
     name: 'Finance Sensitive Vault',
     description: 'High-frequency encrypted backup with strict RPO and immutable retention',
     protectedFolders: [
-      { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: true },
-      { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: true }
+      { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: false },
+      { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: false }
     ],
     customFolders: [],
     excludedPaths: ['%TEMP%', '*.bak', '*.swp', '*.tmp'],
@@ -55,7 +55,7 @@ export const INITIAL_POLICIES: BackupPolicy[] = [
     name: 'Developer Workstation',
     description: 'Code repository backup with build-artifact exclusions',
     protectedFolders: [
-      { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: true },
+      { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: false },
       { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: false }
     ],
     customFolders: [],
