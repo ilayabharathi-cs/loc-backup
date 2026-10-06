@@ -1,0 +1,15 @@
+{
+  "dataset_files": 5006,
+  "dataset_mb": 58.41,
+  "python_scan_time_s": 0.2503,
+  "python_scan_rate_files_s": 20003.9,
+  "native_scan_time_s": 0.1491,
+  "native_scan_rate_files_s": 33574.1,
+  "scan_acceleration_factor": 1.68,
+  "hash_throughput_mb_s": 640.9,
+  "compression_throughput_mb_s": 2111.1,
+  "zero_change_duration_s": 0.0578,
+  "incremental_duration_s": 0.0452,
+  "idle_ram_mb": 26.96,
+  "peak_ram_mb": 42.49
+}

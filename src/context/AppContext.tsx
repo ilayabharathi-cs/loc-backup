@@ -256,7 +256,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             encryptionEnabled: p.encryption_enabled,
             cpuLimitPercent: p.cpu_limit_percent,
             networkLimitMbps: p.network_limit_mbps,
-            retentionDays: p.retention_days
+            retentionDays: p.retention_days,
+            targetRepository: p.target_repository || 'repository',
+            pointOfRecovery: (p.point_of_recovery === 'device' ? 'device' : 'server'),
+            deviceRecoveryPath: p.device_recovery_path || 'C:\\RetroVaultRecovery',
+            recoveryDeviceName: p.recovery_device_name || ''
           };
         });
         setPolicies(mappedPolicies);
@@ -422,6 +426,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await policiesApi.update(numId, {
         name: updated.name,
         description: updated.description,
+        target_repository: updated.targetRepository || 'repository',
+        point_of_recovery: updated.pointOfRecovery || 'server',
+        device_recovery_path: updated.deviceRecoveryPath || 'C:\\RetroVaultRecovery',
+        recovery_device_name: updated.recoveryDeviceName || undefined,
         rpo_target_seconds: updated.rpoTargetSeconds,
         retention_days: updated.retentionDays,
         cpu_limit_percent: updated.cpuLimitPercent,

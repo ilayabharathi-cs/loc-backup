@@ -70,6 +70,10 @@ export interface BackupPolicy {
   cpuLimitPercent: number;
   networkLimitMbps: number;
   retentionDays: number;
+  targetRepository?: string;
+  pointOfRecovery?: 'server' | 'device';
+  deviceRecoveryPath?: string;
+  recoveryDeviceName?: string;
   appliedClientsCount?: number;
 }
 

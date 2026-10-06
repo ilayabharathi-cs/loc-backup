@@ -9,6 +9,7 @@ import atexit
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Tuple
 from agent.src.logger import get_logger
+from agent.native.python.native_bridge import get_native_bridge
 
 
 class VSSProvider(ABC):
@@ -63,6 +64,7 @@ class WindowsVSSProvider(VSSProvider):
     """
     Windows Volume Shadow Copy Service provider.
     Uses real Windows VSS snapshotting when running elevated on Windows.
+    Accelerated with native Win32 layer and graceful fallback.
     Provides crash-safe cleanup, comprehensive diagnostic logging, and clean fallback.
     Never invents fake snapshot device paths.
     """
@@ -95,12 +97,21 @@ class WindowsVSSProvider(VSSProvider):
         if sys.platform != "win32":
             return False, f"VSS is only supported on Windows (current OS: {sys.platform})"
 
-        try:
-            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-            if not is_admin:
-                return False, "VSS unavailable: Agent process requires Windows Administrator (elevated) privileges"
-        except Exception as e:
-            return False, f"VSS privilege check failed: {e}"
+        bridge = get_native_bridge()
+        if bridge.is_available:
+            try:
+                is_admin = bridge.vss_is_admin()
+                if not is_admin:
+                    return False, "VSS unavailable: Agent process requires Windows Administrator (elevated) privileges"
+            except Exception as e:
+                return False, f"VSS privilege check failed: {e}"
+        else:
+            try:
+                is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+                if not is_admin:
+                    return False, "VSS unavailable: Agent process requires Windows Administrator (elevated) privileges"
+            except Exception as e:
+                return False, f"VSS privilege check failed: {e}"
 
         # Verify Volume Shadow Copy Service status
         try:
@@ -126,7 +137,7 @@ class WindowsVSSProvider(VSSProvider):
     def create_snapshot(self, volume: str) -> Optional[str]:
         """
         Request creation of a genuine shadow copy for specified volume (e.g. 'C:').
-        Uses real Windows vssadmin / WMI tooling if running elevated.
+        Uses native Win32 VSS layer with subprocess fallback if running elevated.
         Falls back cleanly if VSS is unavailable or fails.
         """
         norm_vol = volume.rstrip("\\").upper()
@@ -142,8 +153,31 @@ class WindowsVSSProvider(VSSProvider):
             return None
 
         self.logger.info(f"Initiating Windows VSS shadow copy creation for volume '{norm_vol}'...")
+
+        # 1. Try Native C/C++ VSS implementation
+        bridge = get_native_bridge()
+        if bridge.is_available:
+            try:
+                dev_path, snap_id, err_msg = bridge.vss_create_snapshot(norm_vol)
+                if dev_path:
+                    self._active_snapshots[norm_vol] = dev_path
+                    if snap_id:
+                        self._active_snapshot_ids[norm_vol] = snap_id
+                    self.logger.info(
+                        f"Native VSS snapshot created for '{norm_vol}' -> "
+                        f"device: {dev_path}, id: {snap_id or 'N/A'}"
+                    )
+                    return dev_path
+                else:
+                    self.logger.warning(
+                        f"Native VSS snapshot creation failed for '{norm_vol}': {err_msg}. "
+                        f"Trying subprocess fallback..."
+                    )
+            except Exception as e:
+                self.logger.warning(f"Native VSS exception for '{norm_vol}': {e}. Trying fallback...")
+
+        # 2. Subprocess fallback
         try:
-            # Execute real shadow copy creation
             cmd = ["vssadmin", "create", "shadow", f"/for={norm_vol}\\"]
             result = subprocess.run(
                 cmd,
@@ -189,6 +223,15 @@ class WindowsVSSProvider(VSSProvider):
 
         snap_device = self._active_snapshots.get(norm_vol)
         if snap_device:
+            bridge = get_native_bridge()
+            if bridge.is_available:
+                try:
+                    mapped_path = bridge.vss_resolve_path(snap_device, relative_path)
+                    self.logger.debug(f"Source-to-snapshot mapping: '{volume}\\{relative_path}' -> '{mapped_path}'")
+                    return mapped_path
+                except Exception:
+                    pass
+
             clean_rel = relative_path.lstrip("\\/")
             snap_clean = snap_device.rstrip("\\/")
             sep = "\\" if "\\" in snap_device or sys.platform == "win32" else os.sep
@@ -201,22 +244,34 @@ class WindowsVSSProvider(VSSProvider):
     def release_snapshot(self, volume: Optional[str] = None, silent: bool = False) -> None:
         """Release active snapshot(s) cleanly and delete shadow copies."""
         targets = [volume] if volume else list(self._active_snapshots.keys())
+        bridge = get_native_bridge()
         for vol in targets:
             snap_id = self._active_snapshot_ids.pop(vol, None)
             snap_dev = self._active_snapshots.pop(vol, None)
             if snap_id and sys.platform == "win32":
-                try:
-                    subprocess.run(
-                        ["vssadmin", "delete", "shadows", f"/shadow={snap_id}", "/quiet"],
-                        capture_output=True,
-                        timeout=30,
-                        creationflags=subprocess.CREATE_NO_WINDOW
-                    )
-                    if not silent:
-                        self.logger.info(f"Snapshot released: volume '{vol}', shadow ID '{snap_id}'")
-                except Exception as del_err:
-                    if not silent:
-                        self.logger.warning(f"VSS shadow deletion error for '{vol}' ({snap_id}): {del_err}")
+                deleted = False
+                if bridge.is_available:
+                    try:
+                        ok, _ = bridge.vss_delete_snapshot(snap_id)
+                        if ok:
+                            deleted = True
+                            if not silent:
+                                self.logger.info(f"Native snapshot released: volume '{vol}', shadow ID '{snap_id}'")
+                    except Exception:
+                        pass
+                if not deleted:
+                    try:
+                        subprocess.run(
+                            ["vssadmin", "delete", "shadows", f"/shadow={snap_id}", "/quiet"],
+                            capture_output=True,
+                            timeout=30,
+                            creationflags=subprocess.CREATE_NO_WINDOW
+                        )
+                        if not silent:
+                            self.logger.info(f"Snapshot released: volume '{vol}', shadow ID '{snap_id}'")
+                    except Exception as del_err:
+                        if not silent:
+                            self.logger.warning(f"VSS shadow deletion error for '{vol}' ({snap_id}): {del_err}")
             elif snap_dev and not silent:
                 self.logger.info(f"Snapshot released from memory for volume '{vol}' ({snap_dev})")
 

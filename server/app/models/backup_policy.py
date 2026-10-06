@@ -18,6 +18,10 @@ class BackupPolicy(Base):
     cpu_limit_percent: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     network_limit_mbps: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     retention_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
+    target_repository: Mapped[str] = mapped_column(String(100), default="repository", nullable=False)
+    point_of_recovery: Mapped[str] = mapped_column(String(50), default="server", nullable=False)  # server, device
+    device_recovery_path: Mapped[Optional[str]] = mapped_column(String(255), default="C:\\RetroVaultRecovery", nullable=True)
+    recovery_device_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

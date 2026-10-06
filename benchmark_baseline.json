@@ -1,0 +1,19 @@
+{
+  "label": "Python Baseline",
+  "files_scanned": 5006,
+  "total_megabytes": 58.41,
+  "idle_cpu_percent": 0.0,
+  "idle_ram_mb": 26.4,
+  "peak_ram_mb": 48.95,
+  "startup_ms": 427.72,
+  "scan_time_seconds": 0.3992,
+  "scan_rate_files_per_sec": 12540.4,
+  "hash_10mb_seconds": 0.0281,
+  "hash_10mb_throughput_mb_s": 355.5,
+  "compression_400kb_ms": 0.451,
+  "zero_change_detection_seconds": 0.0776,
+  "incremental_detection_seconds": 0.065,
+  "new_count": 0,
+  "modified_count": 251,
+  "unchanged_count": 4755
+}

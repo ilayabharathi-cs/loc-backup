@@ -14,6 +14,7 @@ from agent.src.backup.hashing import calculate_file_sha256
 from agent.src.backup.retry_engine import RetryEngine
 from agent.src.backup.checkpoint_manager import CheckpointManager, BackupCheckpointData
 from agent.src.windows.locked_files import LockedFileHandler, FileLockState
+from agent.native.python.native_bridge import get_native_bridge
 from agent.src.logger import get_logger
 
 
@@ -160,7 +161,14 @@ class TransferEngine:
             bytes_uploaded += max(0, last_chunk_sz)
 
         try:
-            with open(effective_path, "rb") as f:
+            file_handle = None
+            try:
+                file_handle = open(effective_path, "rb")
+            except PermissionError:
+                if not get_native_bridge().is_available:
+                    raise
+
+            try:
                 for chunk_idx in range(total_chunks):
                     if stop_event and stop_event.is_set():
                         self.logger.info(f"Transfer interrupted for '{file_info.file_name}' at chunk {chunk_idx}")
@@ -188,9 +196,15 @@ class TransferEngine:
 
                     # Read chunk bytes
                     offset = chunk_idx * chunk_size
-                    f.seek(offset)
                     actual_read_size = chunk_size if chunk_idx < total_chunks - 1 else (file_size - offset)
-                    chunk_bytes = f.read(actual_read_size)
+                    if file_handle is not None:
+                        try:
+                            file_handle.seek(offset)
+                            chunk_bytes = file_handle.read(actual_read_size)
+                        except (PermissionError, OSError):
+                            chunk_bytes = get_native_bridge().read_file_chunk(effective_path, offset, actual_read_size)
+                    else:
+                        chunk_bytes = get_native_bridge().read_file_chunk(effective_path, offset, actual_read_size)
                     chunk_sha = hashlib.sha256(chunk_bytes).hexdigest()
 
                     # Upload chunk with retry engine
@@ -218,6 +232,12 @@ class TransferEngine:
                         bytes_uploaded=bytes_uploaded,
                         state="BACKING_UP"
                     )
+            finally:
+                if file_handle is not None:
+                    try:
+                        file_handle.close()
+                    except Exception:
+                        pass
 
         except Exception as e:
             self.logger.error(f"Error transferring chunks for '{file_info.file_name}': {e}")

@@ -48,12 +48,14 @@ export const INITIAL_POLICIES: BackupPolicy[] = [
     cpuLimitPercent: 15,
     networkLimitMbps: 150,
     retentionDays: 30,
+    targetRepository: 'repository',
+    pointOfRecovery: 'server',
     appliedClientsCount: 0
   },
   {
     id: 'POL-003',
     name: 'Developer Workstation',
-    description: 'Code repository backup with build-artifact exclusions',
+    description: 'Code repository backup with build-artifact exclusions and on-device recovery cache',
     protectedFolders: [
       { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: false },
       { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: false }
@@ -68,6 +70,10 @@ export const INITIAL_POLICIES: BackupPolicy[] = [
     cpuLimitPercent: 20,
     networkLimitMbps: 200,
     retentionDays: 14,
+    targetRepository: 'repository',
+    pointOfRecovery: 'device',
+    deviceRecoveryPath: 'C:\\RetroVaultRecovery',
+    recoveryDeviceName: '',
     appliedClientsCount: 0
   }
 ];

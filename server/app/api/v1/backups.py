@@ -55,6 +55,7 @@ def _to_run_response(r: BackupRun) -> BackupRunResponse:
         client_id=r.client_id,
         client_identifier=r.client.client_id if r.client else f"PC-{r.client_id:03d}",
         policy_id=r.policy_id,
+        target_repository=getattr(r, "target_repository", "repository") or "repository",
         backup_type=r.backup_type or "full",
         baseline_run_id=r.baseline_run_id,
         started_at=r.started_at,
@@ -225,10 +226,18 @@ def create_backup_run(request: BackupRunCreate, db: Session = Depends(get_db)):
     lease_id = str(uuid.uuid4())
     lease_expiry = now + datetime.timedelta(seconds=300)
 
+    target_repo = request.target_repository
+    if not target_repo and policy_id:
+        pol_rec = db.query(BackupPolicy).filter(BackupPolicy.id == policy_id).first()
+        if pol_rec:
+            target_repo = getattr(pol_rec, "target_repository", "repository")
+    target_repo = target_repo or "repository"
+
     run = BackupRun(
         job_id=job.id,
         client_id=client.id,
         policy_id=policy_id,
+        target_repository=target_repo,
         backup_type=eff_type,
         baseline_run_id=request.baseline_run_id,
         started_at=now,
@@ -385,6 +394,11 @@ async def upload_backup_file(
         )
 
     repo = get_repository()
+    target_repo = getattr(run, "target_repository", None)
+    if not target_repo and run.policy:
+        target_repo = getattr(run.policy, "target_repository", "repository")
+    target_repo = target_repo or "repository"
+
     file_name = os.path.basename(eff_orig_path)
     object_id = eff_sha256 or f"obj_{hash(eff_orig_path)}_{os.path.getmtime(eff_orig_path) if os.path.exists(eff_orig_path) else '0'}"
 
@@ -396,7 +410,8 @@ async def upload_backup_file(
                 run_id=eff_run_id,
                 object_id=object_id,
                 content=file.file,
-                expected_sha256=eff_sha256
+                expected_sha256=eff_sha256,
+                target_repository=target_repo
             )
         else:
             # Raw stream
@@ -406,7 +421,8 @@ async def upload_backup_file(
                 run_id=eff_run_id,
                 object_id=object_id,
                 content=body,
-                expected_sha256=eff_sha256
+                expected_sha256=eff_sha256,
+                target_repository=target_repo
             )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -1134,9 +1150,13 @@ async def upload_chunk(
     offset = x_chunk_offset if x_chunk_offset is not None else (chunk_index * session.chunk_size)
     run = session.run
     client_identifier = run.client.client_id if run.client else f"PC-{run.client_id:03d}"
+    target_repo = getattr(run, "target_repository", None)
+    if not target_repo and run.policy:
+        target_repo = getattr(run.policy, "target_repository", "repository")
+    target_repo = target_repo or "repository"
 
     repo = get_repository()
-    repo.write_staging_chunk(client_identifier, run.id, session.id, offset, chunk_bytes)
+    repo.write_staging_chunk(client_identifier, run.id, session.id, offset, chunk_bytes, target_repository=target_repo)
 
     if not existing_chunk:
         chunk_rec = UploadChunk(
@@ -1201,6 +1221,10 @@ def complete_upload_session(
 
     run = session.run
     client_identifier = run.client.client_id if run.client else f"PC-{run.client_id:03d}"
+    target_repo = getattr(run, "target_repository", None)
+    if not target_repo and run.policy:
+        target_repo = getattr(run.policy, "target_repository", "repository")
+    target_repo = target_repo or "repository"
 
     repo = get_repository()
     try:
@@ -1209,7 +1233,8 @@ def complete_upload_session(
             run_id=run.id,
             session_id=session.id,
             object_id=req.final_sha256,
-            expected_sha256=req.final_sha256
+            expected_sha256=req.final_sha256,
+            target_repository=target_repo
         )
     except Exception as e:
         existing_file = db.query(BackupFile).filter(

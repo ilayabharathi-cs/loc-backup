@@ -1,4 +1,4 @@
-"""Locked and in-use file detection, classification, and safe reading for RetroVault V4."""
+"""Locked and in-use file detection, classification, and safe reading for RetroVault."""
 
 import os
 import time
@@ -7,6 +7,13 @@ from typing import Optional, Tuple
 from dataclasses import dataclass
 from agent.src.windows.vss import VSSProvider
 from agent.src.logger import get_logger
+from agent.native.python.native_bridge import (
+    get_native_bridge,
+    RV_IO_SUCCESS,
+    RV_IO_LOCKED,
+    RV_IO_ACCESS_DENIED,
+    RV_IO_NOT_FOUND,
+)
 
 
 class FileLockState(str, Enum):
@@ -43,6 +50,7 @@ class LockedFileHandler:
         """
         Inspect file accessibility, detect if locked by another process,
         and attempt VSS snapshot resolution if available.
+        Uses native Win32 inspection with automatic Python fallback.
         """
         if not os.path.exists(original_path):
             return FileInspectionResult(
@@ -53,11 +61,80 @@ class LockedFileHandler:
                 error_message="File does not exist"
             )
 
-        # 1. Test live file read access
+        # 1. Attempt Native Win32 Inspection
+        bridge = get_native_bridge()
+        if bridge.is_available:
+            try:
+                stat = bridge.inspect_file(original_path)
+                if stat.status == RV_IO_SUCCESS:
+                    return FileInspectionResult(
+                        state=FileLockState.READABLE,
+                        effective_path=original_path,
+                        size_bytes=stat.size_bytes,
+                        modified_time=stat.modified_time,
+                        is_vss_used=False
+                    )
+                elif stat.status == RV_IO_LOCKED:
+                    # File locked: attempt VSS recovery
+                    if self.vss_provider and relative_path:
+                        drive, _ = os.path.splitdrive(original_path)
+                        vss_path = self.vss_provider.get_snapshot_path(drive or "C:", relative_path)
+                        if vss_path and os.path.exists(vss_path):
+                            try:
+                                vss_stat = bridge.inspect_file(vss_path)
+                                if vss_stat.status == RV_IO_SUCCESS:
+                                    self.logger.info(f"File '{original_path}' recovered via VSS snapshot: '{vss_path}'")
+                                    return FileInspectionResult(
+                                        state=FileLockState.VSS_READABLE,
+                                        effective_path=vss_path,
+                                        size_bytes=vss_stat.size_bytes,
+                                        modified_time=vss_stat.modified_time,
+                                        is_vss_used=True
+                                    )
+                            except Exception as vss_err:
+                                self.logger.debug(f"VSS read failed for '{vss_path}': {vss_err}")
+
+                    return FileInspectionResult(
+                        state=FileLockState.LOCKED,
+                        effective_path=original_path,
+                        size_bytes=0,
+                        modified_time=0.0,
+                        error_message="File is locked by another process (sharing violation)",
+                        is_vss_used=False
+                    )
+                elif stat.status == RV_IO_ACCESS_DENIED:
+                    return FileInspectionResult(
+                        state=FileLockState.ACCESS_DENIED,
+                        effective_path=original_path,
+                        size_bytes=0,
+                        modified_time=0.0,
+                        error_message="Access denied to file",
+                        is_vss_used=False
+                    )
+                elif stat.status == RV_IO_NOT_FOUND:
+                    return FileInspectionResult(
+                        state=FileLockState.NOT_FOUND,
+                        effective_path=original_path,
+                        size_bytes=0,
+                        modified_time=0.0,
+                        error_message="File not found",
+                        is_vss_used=False
+                    )
+            except Exception as e:
+                self.logger.debug(f"Native inspect_file exception ({e}); trying Python fallback.")
+
+        # 2. Pure Python Fallback
+        return self._inspect_file_python_fallback(original_path, relative_path)
+
+    def _inspect_file_python_fallback(
+        self,
+        original_path: str,
+        relative_path: Optional[str] = None
+    ) -> FileInspectionResult:
+        """Pure Python fallback for file inspection."""
         try:
             st = os.stat(original_path)
             with open(original_path, "rb") as f:
-                # Read 1 byte to verify no exclusive sharing lock
                 f.read(1)
 
             return FileInspectionResult(
@@ -68,10 +145,7 @@ class LockedFileHandler:
                 is_vss_used=False
             )
         except PermissionError as e:
-            # File locked or access denied
             self.logger.warning(f"File locked or access denied: '{original_path}': {e}")
-
-            # 2. Try VSS snapshot if enabled
             if self.vss_provider and relative_path:
                 drive, _ = os.path.splitdrive(original_path)
                 vss_path = self.vss_provider.get_snapshot_path(drive or "C:", relative_path)
@@ -118,6 +192,13 @@ class LockedFileHandler:
         """
         Verify file was not altered while reading (Phase 12: CHANGED_DURING_BACKUP protection).
         """
+        bridge = get_native_bridge()
+        if bridge.is_available:
+            try:
+                return bridge.verify_consistency(file_path, expected_size, expected_mtime)
+            except Exception:
+                pass
+
         try:
             st = os.stat(file_path)
             if st.st_size != expected_size or abs(st.st_mtime - expected_mtime) > 0.001:
@@ -136,12 +217,11 @@ class LockedFileHandler:
         initial_stat: FileInspectionResult
     ) -> Tuple[bool, Optional[str]]:
         """Verify file was not altered while reading, returning tuple (is_consistent, reason)."""
-        try:
-            st = os.stat(file_path)
-            if st.st_size != initial_stat.size_bytes:
-                return False, f"Size changed from {initial_stat.size_bytes} to {st.st_size}"
-            if abs(st.st_mtime - initial_stat.modified_time) > 0.001:
-                return False, f"Mtime changed from {initial_stat.modified_time} to {st.st_mtime}"
-            return True, None
-        except OSError as e:
-            return False, str(e)
+        consistent = self.verify_consistency_after_read(
+            file_path,
+            initial_stat.size_bytes,
+            initial_stat.modified_time
+        )
+        if not consistent:
+            return False, "File attributes modified during backup operation"
+        return True, None

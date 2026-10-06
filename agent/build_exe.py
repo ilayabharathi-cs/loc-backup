@@ -52,6 +52,8 @@ def build_windows_exe():
         "--hidden-import=agent.src.service",
         "--hidden-import=agent.src.scheduler",
         "--hidden-import=agent.src.restore",
+        "--hidden-import=agent.native.python.native_bridge",
+        f"--add-data={os.path.join(agent_dir, 'native', 'bin', 'retrovault_native.dll')};agent/native/bin",
         entrypoint
     ]
 

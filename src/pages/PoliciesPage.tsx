@@ -6,6 +6,18 @@ import { WinCheckbox } from '../components/win95/WinFormControls';
 import { WinDialog } from '../components/win95/WinDialog';
 import { ShieldCheckIcon, ComputerIcon } from '../components/win95/WinIcons';
 
+const REPOSITORY_PRESETS = [
+  { id: 'repository', label: 'repository (Default Global Storage)', description: 'Primary centralized vault root' },
+  { id: 'production', label: 'production (Production Department)', description: 'Mission-critical production systems' },
+  { id: 'marketing', label: 'marketing (Marketing & Media)', description: 'Marketing assets, creatives, campaign data' },
+  { id: 'human-resources', label: 'human-resources (HR & Personnel)', description: 'HR records, employee files, onboarding' },
+  { id: 'finance', label: 'finance (Finance & Accounting)', description: 'Financial spreadsheets, ledgers, audits' },
+  { id: 'engineering', label: 'engineering (Engineering & DevOps)', description: 'Source code, builds, telemetry, staging' },
+  { id: 'legal', label: 'legal (Legal & Compliance)', description: 'Contracts, compliance records, NDAs' },
+  { id: 'operations', label: 'operations (Operations & Logistics)', description: 'Supply chain, shipping, vendor orders' },
+  { id: 'custom', label: 'custom (Custom / Enter Name Below...)', description: 'Specify any custom folder name or path' },
+];
+
 export const PoliciesPage: React.FC = () => {
   const { policies, clients, updatePolicy, applyPolicyToClients } = useApp();
 
@@ -15,6 +27,10 @@ export const PoliciesPage: React.FC = () => {
   // Editable draft state
   const [name, setName] = useState<string>(currentPolicy.name);
   const [description, setDescription] = useState<string>(currentPolicy.description);
+  const [targetRepository, setTargetRepository] = useState<string>(currentPolicy.targetRepository || 'repository');
+  const [pointOfRecovery, setPointOfRecovery] = useState<'server' | 'device'>(currentPolicy.pointOfRecovery || 'server');
+  const [deviceRecoveryPath, setDeviceRecoveryPath] = useState<string>(currentPolicy.deviceRecoveryPath || 'C:\\RetroVaultRecovery');
+  const [recoveryDeviceName, setRecoveryDeviceName] = useState<string>(currentPolicy.recoveryDeviceName || '');
   const [folders, setFolders] = useState(currentPolicy.protectedFolders);
   const [customFolders, setCustomFolders] = useState<string[]>(currentPolicy.customFolders);
   const [excludedPaths, setExcludedPaths] = useState<string[]>(currentPolicy.excludedPaths);
@@ -41,6 +57,10 @@ export const PoliciesPage: React.FC = () => {
     setSelectedPolicyId(p.id);
     setName(p.name);
     setDescription(p.description);
+    setTargetRepository(p.targetRepository || 'repository');
+    setPointOfRecovery(p.pointOfRecovery || 'server');
+    setDeviceRecoveryPath(p.deviceRecoveryPath || 'C:\\RetroVaultRecovery');
+    setRecoveryDeviceName(p.recoveryDeviceName || '');
     setFolders(p.protectedFolders);
     setCustomFolders(p.customFolders);
     setExcludedPaths(p.excludedPaths);
@@ -84,6 +104,10 @@ export const PoliciesPage: React.FC = () => {
       ...currentPolicy,
       name,
       description,
+      targetRepository: targetRepository.trim() || 'repository',
+      pointOfRecovery,
+      deviceRecoveryPath: deviceRecoveryPath.trim() || 'C:\\RetroVaultRecovery',
+      recoveryDeviceName: recoveryDeviceName.trim() || undefined,
       protectedFolders: folders,
       customFolders,
       excludedPaths,
@@ -115,7 +139,7 @@ export const PoliciesPage: React.FC = () => {
               Enterprise Workstation Backup Policy Manager
             </h1>
             <p className="text-[10px] text-[#505050] m-0">
-              Configure universal logical path definitions, NTFS USN triggers, throttling, and retention
+              Configure universal logical path definitions, storage destination repositories, throttling, and retention
             </p>
           </div>
         </div>
@@ -161,7 +185,18 @@ export const PoliciesPage: React.FC = () => {
                     </span>
                   </div>
                   <div className={`text-[10px] truncate ${isSelected ? 'text-[#c0d8ff]' : 'text-[#606060]'}`}>
-                    RPO: {p.rpoTargetSeconds}s | {p.backupType}
+                    RPO: {p.rpoTargetSeconds}s | {p.backupType} | Repo: {p.targetRepository || 'repository'}
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className={`text-[9px] px-1 font-semibold ${
+                      p.pointOfRecovery === 'device'
+                        ? (isSelected ? 'bg-amber-300 text-black' : 'bg-amber-100 text-amber-900 border border-amber-300')
+                        : (isSelected ? 'bg-blue-300 text-black' : 'bg-blue-50 text-blue-900 border border-blue-200')
+                    }`}>
+                      {p.pointOfRecovery === 'device'
+                        ? `Recovery: Device (${p.recoveryDeviceName || 'Source PC'})`
+                        : 'Recovery: Server Vault'}
+                    </span>
                   </div>
                 </div>
               );
@@ -176,6 +211,10 @@ export const PoliciesPage: React.FC = () => {
                 id: newId,
                 name: 'New Custom Enterprise Policy',
                 description: 'Custom protection profile',
+                targetRepository: 'repository',
+                pointOfRecovery: 'server',
+                deviceRecoveryPath: 'C:\\RetroVaultRecovery',
+                recoveryDeviceName: '',
                 protectedFolders: [
                   { path: '%USERPROFILE%\\Documents', isUniversal: true, enabled: false },
                   { path: '%USERPROFILE%\\Desktop', isUniversal: true, enabled: false }
@@ -220,6 +259,204 @@ export const PoliciesPage: React.FC = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 className="win-inset bg-white px-2 py-1 text-[11px] text-black w-full"
               />
+            </div>
+          </div>
+
+          {/* Section: Point of Recovery Location (Before Repository Selection) */}
+          <div className="win-fieldset bg-[#c0c0c0] p-2 flex flex-col gap-2">
+            <legend className="text-[10px] font-bold text-[#000080] bg-[#c0c0c0] px-1 flex items-center gap-1">
+              <span>POINT OF RECOVERY LOCATION</span>
+            </legend>
+
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                {/* Option A: Current Server */}
+                <div
+                  onClick={() => setPointOfRecovery('server')}
+                  className={`win-inset p-2 flex flex-col gap-1 cursor-pointer select-none transition-colors ${
+                    pointOfRecovery === 'server' ? 'bg-[#e0e8ff] ring-1 ring-blue-700' : 'bg-white hover:bg-[#f8f8f8]'
+                  }`}
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pointOfRecovery"
+                      value="server"
+                      checked={pointOfRecovery === 'server'}
+                      onChange={() => setPointOfRecovery('server')}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-[11px] font-bold text-black">Current Server (Central Storage Vault)</span>
+                  </label>
+                  <p className="text-[10px] text-[#505050] pl-5 leading-tight">
+                    Standard central backup. Recovery points are stored in the server repository and restored over network.
+                  </p>
+                </div>
+
+                {/* Option B: Device (Source Machine) */}
+                <div
+                  onClick={() => setPointOfRecovery('device')}
+                  className={`win-inset p-2 flex flex-col gap-1 cursor-pointer select-none transition-colors ${
+                    pointOfRecovery === 'device' ? 'bg-[#fff5e0] ring-1 ring-amber-700' : 'bg-white hover:bg-[#f8f8f8]'
+                  }`}
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pointOfRecovery"
+                      value="device"
+                      checked={pointOfRecovery === 'device'}
+                      onChange={() => setPointOfRecovery('device')}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-[11px] font-bold text-black">Device Point of Recovery (On-Device Cache)</span>
+                  </label>
+                  <p className="text-[10px] text-[#505050] pl-5 leading-tight">
+                    Enables local on-device recovery point on the source machine for instant SSD/NVMe speed rollback.
+                  </p>
+                </div>
+              </div>
+
+              {/* Option B Configuration Fields (When Device Point of Recovery is selected) */}
+              {pointOfRecovery === 'device' && (
+                <div className="win-outset p-2 bg-[#ececec] flex flex-col gap-2 border border-[#a0a0a0]">
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    {/* Device / Hostname Selector */}
+                    <div className="col-span-5 flex flex-col gap-0.5">
+                      <label className="text-[10px] font-bold text-black flex items-center justify-between">
+                        <span>Designated Client Device:</span>
+                        <span className="text-[9px] text-[#505050]">Source PC</span>
+                      </label>
+                      <select
+                        value={recoveryDeviceName || (clients.length > 0 ? clients[0].hostname : '')}
+                        onChange={(e) => setRecoveryDeviceName(e.target.value)}
+                        className="win-inset bg-white px-2 py-1 text-[11px] text-black w-full cursor-pointer font-medium"
+                      >
+                        <option value="">-- Active Backing-up Machine --</option>
+                        {clients.map(c => (
+                          <option key={c.id} value={c.hostname}>
+                            {c.hostname} ({c.os})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Local Recovery Path Location on that Device */}
+                    <div className="col-span-7 flex flex-col gap-0.5">
+                      <label className="text-[10px] font-bold text-black flex items-center justify-between">
+                        <span>Device Recovery Storage Path / Folder:</span>
+                        <span className="text-[9px] text-[#000080] font-mono font-semibold">Saved & recovered location</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={deviceRecoveryPath}
+                        onChange={(e) => setDeviceRecoveryPath(e.target.value)}
+                        placeholder="e.g. C:\RetroVaultRecovery or D:\LocalBackupPoint"
+                        className="win-inset bg-white px-2 py-1 text-[11px] font-mono font-bold text-black w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-[#603000] flex items-start gap-1.5 bg-[#fff8e6] px-2 py-1.5 border border-[#dfc890]">
+                    <span className="text-[12px] leading-none">📂</span>
+                    <span className="leading-tight">
+                      <strong>On-Device Recovery Active:</strong> In the Recovery/Restore page, selecting <strong>"Source Recovery"</strong> will list this device (<span className="font-mono font-bold">{recoveryDeviceName || 'Source PC'}</span>). Recovered files can be written directly to this specified location (<span className="font-mono font-bold">{deviceRecoveryPath || 'C:\\RetroVaultRecovery'}</span>) or back to original source paths.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section: Target Backup Repository / Storage Destination */}
+          <div className="win-fieldset bg-[#c0c0c0] p-2 flex flex-col gap-2">
+            <legend className="text-[10px] font-bold text-[#000080] bg-[#c0c0c0] px-1 flex items-center gap-1">
+              <span>SERVER BACKUP REPOSITORY / DESTINATION STORAGE FOLDER</span>
+            </legend>
+
+            <div className="grid grid-cols-12 gap-2 items-center">
+              {/* Dropdown / Scroll Selector with Suggested Departments */}
+              <div className="col-span-5 flex flex-col gap-0.5">
+                <label className="text-[10px] font-bold text-black flex items-center justify-between">
+                  <span>Suggested Department Presets:</span>
+                  <span className="text-[9px] text-[#505050] font-normal">Scroll & select</span>
+                </label>
+                <select
+                  value={REPOSITORY_PRESETS.some(p => p.id === targetRepository) ? targetRepository : 'custom'}
+                  onChange={(e) => {
+                    if (e.target.value !== 'custom') {
+                      setTargetRepository(e.target.value);
+                    }
+                  }}
+                  className="win-inset bg-white px-2 py-1 text-[11px] text-black w-full cursor-pointer font-medium"
+                >
+                  {REPOSITORY_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Direct Folder Name / Path Input */}
+              <div className="col-span-7 flex flex-col gap-0.5">
+                <label className="text-[10px] font-bold text-black flex items-center justify-between">
+                  <span>Custom Target Folder Name / Input:</span>
+                  <span className="text-[9px] text-[#000080] font-mono font-semibold">e.g. production hr, marketing, D:\Backups\HR</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={targetRepository}
+                    onChange={(e) => setTargetRepository(e.target.value)}
+                    placeholder="e.g. production hr, marketing, hr, or path"
+                    className="win-inset bg-white px-2 py-1 text-[11px] font-mono font-bold text-black flex-1"
+                  />
+                  <WinButton
+                    size="sm"
+                    onClick={() => setTargetRepository('repository')}
+                    title="Reset to default root repository"
+                  >
+                    Reset Default
+                  </WinButton>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Quick Selection Badges */}
+            <div className="flex items-center gap-1 overflow-x-auto py-1">
+              <span className="text-[9px] font-bold text-[#404040] uppercase shrink-0">Quick Options:</span>
+              {['repository', 'production', 'marketing', 'human-resources', 'finance', 'engineering', 'production hr'].map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setTargetRepository(opt)}
+                  className={`px-2 py-0.5 text-[10px] font-mono border cursor-pointer whitespace-nowrap transition-colors ${
+                    targetRepository === opt
+                      ? 'bg-[#000080] text-white border-black font-bold shadow-inner'
+                      : 'bg-[#dcdcdc] text-black border-[#808080] hover:bg-white'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Server Destination Path Preview */}
+            <div className="win-inset bg-[#e8e8e8] px-2 py-1 text-[10px] font-mono flex items-center justify-between text-[#333333]">
+              <div className="truncate">
+                <span className="font-bold text-[#000080]">Server Storage Target: </span>
+                <span className="text-black font-semibold">
+                  {targetRepository && targetRepository !== 'repository' && !targetRepository.includes(':') && !targetRepository.startsWith('/')
+                    ? `<REPOSITORY_ROOT>/${targetRepository}/clients/<client_id>/runs/<run_id>/objects/`
+                    : targetRepository && (targetRepository.includes(':') || targetRepository.startsWith('/'))
+                    ? `${targetRepository}/clients/<client_id>/runs/<run_id>/objects/`
+                    : `<REPOSITORY_ROOT>/clients/<client_id>/runs/<run_id>/objects/ (Default)`}
+                </span>
+              </div>
+              <span className="text-[9px] px-1 bg-[#c0c0c0] border border-[#808080] font-sans font-semibold shrink-0 ml-2">
+                Isolated Folder
+              </span>
             </div>
           </div>
 

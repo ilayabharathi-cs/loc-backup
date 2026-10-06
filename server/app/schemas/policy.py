@@ -21,6 +21,10 @@ class PolicyBase(BaseModel):
     cpu_limit_percent: int = Field(default=10, ge=1, le=100)
     network_limit_mbps: int = Field(default=100, ge=1, le=10000)
     retention_days: int = Field(default=7, ge=1, le=3650)
+    target_repository: Optional[str] = "repository"
+    point_of_recovery: Optional[str] = "server"  # server, device
+    device_recovery_path: Optional[str] = "C:\\RetroVaultRecovery"
+    recovery_device_name: Optional[str] = None
     is_active: bool = True
 
 class PolicyCreate(PolicyBase):
@@ -37,6 +41,10 @@ class PolicyUpdate(BaseModel):
     cpu_limit_percent: Optional[int] = None
     network_limit_mbps: Optional[int] = None
     retention_days: Optional[int] = None
+    target_repository: Optional[str] = None
+    point_of_recovery: Optional[str] = None
+    device_recovery_path: Optional[str] = None
+    recovery_device_name: Optional[str] = None
     is_active: Optional[bool] = None
     paths: Optional[List[PolicyPathSchema]] = None
 

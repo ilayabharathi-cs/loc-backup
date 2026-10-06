@@ -27,17 +27,44 @@ class LocalFilesystemRepository(StorageRepositoryBase):
             raise ValueError(f"Invalid {name} '{value}'. Must be alphanumeric with - or _.")
         return cleaned
 
-    def _get_target_dir(self, client_identifier: str, run_id: int) -> str:
+    def _sanitize_repository_folder(self, target_repository: Optional[str]) -> Tuple[str, bool]:
+        """
+        Determines the effective base directory for a given target repository.
+        Returns: (base_directory_path, is_absolute_external)
+        """
+        if not target_repository or not str(target_repository).strip():
+            return self.root_path, False
+
+        t = str(target_repository).strip()
+        if t.lower() in ("default", "repository", "root"):
+            return self.root_path, False
+
+        if os.path.isabs(t):
+            abs_path = os.path.abspath(t)
+            os.makedirs(abs_path, exist_ok=True)
+            return abs_path, True
+
+        parts = [p.strip() for p in re.split(r"[\\/]+", t) if p.strip() and p.strip() != "."]
+        for part in parts:
+            if part == ".." or not re.match(r"^[a-zA-Z0-9_\-\. ]+$", part):
+                raise ValueError(f"Invalid target repository path component: '{part}'")
+
+        sub_dir = os.path.join(self.root_path, *parts)
+        os.makedirs(sub_dir, exist_ok=True)
+        return sub_dir, False
+
+    def _get_target_dir(self, client_identifier: str, run_id: int, target_repository: Optional[str] = None) -> str:
         """Compute and ensure target directory for a client run."""
         safe_client = self._sanitize_identifier(client_identifier, "client_id")
         safe_run = self._sanitize_identifier(str(run_id), "run_id")
+        base_dir, is_ext = self._sanitize_repository_folder(target_repository)
 
-        target_dir = os.path.join(self.root_path, "clients", safe_client, "runs", safe_run, "objects")
-        # Security: verify target_dir remains inside repository root
-        norm_root = os.path.abspath(self.root_path)
+        target_dir = os.path.join(base_dir, "clients", safe_client, "runs", safe_run, "objects")
+        # Security: verify target_dir remains inside base directory
+        norm_base = os.path.abspath(base_dir)
         norm_target = os.path.abspath(target_dir)
         try:
-            if os.path.normcase(os.path.commonpath([norm_root, norm_target])) != os.path.normcase(norm_root):
+            if os.path.normcase(os.path.commonpath([norm_base, norm_target])) != os.path.normcase(norm_base):
                 raise ValueError(f"Directory traversal attack detected: '{client_identifier}'")
         except ValueError:
             raise ValueError(f"Directory traversal attack detected: '{client_identifier}'")
@@ -45,10 +72,10 @@ class LocalFilesystemRepository(StorageRepositoryBase):
         os.makedirs(target_dir, exist_ok=True)
         return target_dir
 
-    def get_object_path(self, client_identifier: str, run_id: int, object_id: str) -> str:
+    def get_object_path(self, client_identifier: str, run_id: int, object_id: str, target_repository: Optional[str] = None) -> str:
         """Compute absolute path to an object and verify boundary containment."""
         safe_obj = self._sanitize_identifier(object_id, "object_id")
-        target_dir = self._get_target_dir(client_identifier, run_id)
+        target_dir = self._get_target_dir(client_identifier, run_id, target_repository=target_repository)
         obj_path = os.path.join(target_dir, safe_obj)
 
         norm_dir = os.path.abspath(target_dir)
@@ -61,9 +88,9 @@ class LocalFilesystemRepository(StorageRepositoryBase):
 
         return obj_path
 
-    def object_exists(self, client_identifier: str, run_id: int, object_id: str) -> bool:
+    def object_exists(self, client_identifier: str, run_id: int, object_id: str, target_repository: Optional[str] = None) -> bool:
         """Check if an object exists on disk."""
-        path = self.get_object_path(client_identifier, run_id, object_id)
+        path = self.get_object_path(client_identifier, run_id, object_id, target_repository=target_repository)
         return os.path.exists(path) and os.path.isfile(path)
 
     def store_object(
@@ -72,14 +99,15 @@ class LocalFilesystemRepository(StorageRepositoryBase):
         run_id: int,
         object_id: str,
         content: Union[bytes, BinaryIO],
-        expected_sha256: Optional[str] = None
+        expected_sha256: Optional[str] = None,
+        target_repository: Optional[str] = None
     ) -> Tuple[str, int, str]:
         """
         Store object with streaming SHA-256 calculation and atomic replace.
         Returns: (storage_object_rel_path, bytes_written, computed_sha256)
         """
-        target_dir = self._get_target_dir(client_identifier, run_id)
-        final_path = self.get_object_path(client_identifier, run_id, object_id)
+        target_dir = self._get_target_dir(client_identifier, run_id, target_repository=target_repository)
+        final_path = self.get_object_path(client_identifier, run_id, object_id, target_repository=target_repository)
 
         hasher = hashlib.sha256()
         bytes_written = 0
@@ -115,8 +143,11 @@ class LocalFilesystemRepository(StorageRepositoryBase):
             # Atomic replace
             os.replace(tmp_path, final_path)
 
-            # Return relative path for database storage
-            rel_path = os.path.relpath(final_path, self.root_path).replace("\\", "/")
+            base_dir, is_ext = self._sanitize_repository_folder(target_repository)
+            if is_ext:
+                rel_path = final_path.replace("\\", "/")
+            else:
+                rel_path = os.path.relpath(final_path, self.root_path).replace("\\", "/")
             return rel_path, bytes_written, computed_hash
 
         except Exception:
@@ -127,13 +158,14 @@ class LocalFilesystemRepository(StorageRepositoryBase):
                     pass
             raise
 
-    def get_staging_path(self, client_identifier: str, run_id: int, session_id: str) -> str:
+    def get_staging_path(self, client_identifier: str, run_id: int, session_id: str, target_repository: Optional[str] = None) -> str:
         """Compute absolute path for staging an in-progress resumable upload session."""
         safe_client = self._sanitize_identifier(client_identifier, "client_id")
         safe_run = self._sanitize_identifier(str(run_id), "run_id")
         safe_session = self._sanitize_identifier(session_id, "session_id")
+        base_dir, _ = self._sanitize_repository_folder(target_repository)
 
-        staging_dir = os.path.join(self.root_path, "clients", safe_client, "runs", safe_run, "staging")
+        staging_dir = os.path.join(base_dir, "clients", safe_client, "runs", safe_run, "staging")
         os.makedirs(staging_dir, exist_ok=True)
         return os.path.join(staging_dir, f"{safe_session}.part")
 
@@ -143,10 +175,11 @@ class LocalFilesystemRepository(StorageRepositoryBase):
         run_id: int,
         session_id: str,
         offset: int,
-        chunk_bytes: bytes
+        chunk_bytes: bytes,
+        target_repository: Optional[str] = None
     ) -> int:
         """Write chunk bytes at exact byte offset into the session's staging file."""
-        staging_file = self.get_staging_path(client_identifier, run_id, session_id)
+        staging_file = self.get_staging_path(client_identifier, run_id, session_id, target_repository=target_repository)
         mode = "r+b" if os.path.exists(staging_file) else "wb"
         with open(staging_file, mode) as f:
             f.seek(offset)
@@ -160,19 +193,21 @@ class LocalFilesystemRepository(StorageRepositoryBase):
         run_id: int,
         session_id: str,
         object_id: str,
-        expected_sha256: Optional[str] = None
+        expected_sha256: Optional[str] = None,
+        target_repository: Optional[str] = None
     ) -> Tuple[str, int, str]:
         """
         Verify the completed staging file SHA-256 and atomically move to final repository location.
         Returns: (storage_object_rel_path, bytes_written, computed_sha256)
         """
-        staging_file = self.get_staging_path(client_identifier, run_id, session_id)
-        final_path = self.get_object_path(client_identifier, run_id, object_id)
+        staging_file = self.get_staging_path(client_identifier, run_id, session_id, target_repository=target_repository)
+        final_path = self.get_object_path(client_identifier, run_id, object_id, target_repository=target_repository)
 
         if not os.path.exists(staging_file):
             if os.path.exists(final_path):
                 total_bytes = os.path.getsize(final_path)
-                rel_path = os.path.relpath(final_path, self.root_path).replace("\\", "/")
+                base_dir, is_ext = self._sanitize_repository_folder(target_repository)
+                rel_path = final_path.replace("\\", "/") if is_ext else os.path.relpath(final_path, self.root_path).replace("\\", "/")
                 return rel_path, total_bytes, (expected_sha256 or object_id)
             if expected_sha256 and self.cas_object_exists(expected_sha256):
                 cas_path = self.get_cas_path(expected_sha256)
@@ -199,7 +234,11 @@ class LocalFilesystemRepository(StorageRepositoryBase):
             )
 
         os.replace(staging_file, final_path)
-        rel_path = os.path.relpath(final_path, self.root_path).replace("\\", "/")
+        base_dir, is_ext = self._sanitize_repository_folder(target_repository)
+        if is_ext:
+            rel_path = final_path.replace("\\", "/")
+        else:
+            rel_path = os.path.relpath(final_path, self.root_path).replace("\\", "/")
         return rel_path, total_bytes, computed_hash
 
     # =========================================================================

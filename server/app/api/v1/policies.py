@@ -32,6 +32,10 @@ def list_policies(
             cpu_limit_percent=p.cpu_limit_percent,
             network_limit_mbps=p.network_limit_mbps,
             retention_days=p.retention_days,
+            target_repository=getattr(p, "target_repository", "repository") or "repository",
+            point_of_recovery=getattr(p, "point_of_recovery", "server") or "server",
+            device_recovery_path=getattr(p, "device_recovery_path", "C:\\RetroVaultRecovery") or "C:\\RetroVaultRecovery",
+            recovery_device_name=getattr(p, "recovery_device_name", None),
             is_active=p.is_active,
             created_at=p.created_at,
             updated_at=p.updated_at,
@@ -71,6 +75,10 @@ def get_policy(
         cpu_limit_percent=p.cpu_limit_percent,
         network_limit_mbps=p.network_limit_mbps,
         retention_days=p.retention_days,
+        target_repository=getattr(p, "target_repository", "repository") or "repository",
+        point_of_recovery=getattr(p, "point_of_recovery", "server") or "server",
+        device_recovery_path=getattr(p, "device_recovery_path", "C:\\RetroVaultRecovery") or "C:\\RetroVaultRecovery",
+        recovery_device_name=getattr(p, "recovery_device_name", None),
         is_active=p.is_active,
         created_at=p.created_at,
         updated_at=p.updated_at,
@@ -102,6 +110,10 @@ def create_policy(
         cpu_limit_percent=request.cpu_limit_percent,
         network_limit_mbps=request.network_limit_mbps,
         retention_days=request.retention_days,
+        target_repository=request.target_repository or "repository",
+        point_of_recovery=request.point_of_recovery or "server",
+        device_recovery_path=request.device_recovery_path or "C:\\RetroVaultRecovery",
+        recovery_device_name=request.recovery_device_name,
         is_active=request.is_active
     )
     db.add(policy)
@@ -125,7 +137,7 @@ def create_policy(
         resource_type="policy",
         resource_id=str(policy.id),
         user_id=current_user.id if current_user else None,
-        details=f"Created backup policy '{policy.name}' with {len(request.paths)} paths"
+        details=f"Created backup policy '{policy.name}' targeting repo '{policy.target_repository}' with {len(request.paths)} paths"
     )
 
     paths = [PolicyPathSchema.model_validate(path) for path in policy.paths]
@@ -141,6 +153,10 @@ def create_policy(
         cpu_limit_percent=policy.cpu_limit_percent,
         network_limit_mbps=policy.network_limit_mbps,
         retention_days=policy.retention_days,
+        target_repository=getattr(policy, "target_repository", "repository") or "repository",
+        point_of_recovery=getattr(policy, "point_of_recovery", "server") or "server",
+        device_recovery_path=getattr(policy, "device_recovery_path", "C:\\RetroVaultRecovery") or "C:\\RetroVaultRecovery",
+        recovery_device_name=getattr(policy, "recovery_device_name", None),
         is_active=policy.is_active,
         created_at=policy.created_at,
         updated_at=policy.updated_at,
@@ -202,6 +218,10 @@ def update_policy(
         cpu_limit_percent=p.cpu_limit_percent,
         network_limit_mbps=p.network_limit_mbps,
         retention_days=p.retention_days,
+        target_repository=getattr(p, "target_repository", "repository") or "repository",
+        point_of_recovery=getattr(p, "point_of_recovery", "server") or "server",
+        device_recovery_path=getattr(p, "device_recovery_path", "C:\\RetroVaultRecovery") or "C:\\RetroVaultRecovery",
+        recovery_device_name=getattr(p, "recovery_device_name", None),
         is_active=p.is_active,
         created_at=p.created_at,
         updated_at=p.updated_at,

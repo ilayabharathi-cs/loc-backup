@@ -19,6 +19,10 @@ export interface PolicyApiData {
   cpu_limit_percent: number;
   network_limit_mbps: number;
   retention_days: number;
+  target_repository?: string;
+  point_of_recovery?: string;
+  device_recovery_path?: string;
+  recovery_device_name?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;

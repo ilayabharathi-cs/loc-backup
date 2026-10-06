@@ -1,18 +1,20 @@
-"""Recursive directory scanner for RetroVault Backup Engine."""
+"""Recursive directory scanner for RetroVault Backup Engine with Native Win32 Acceleration."""
 
 import os
 from typing import List, Set, Optional
 from agent.src.backup.models import DiscoveredFile
 from agent.src.utils.filesystem import canonicalize_path
 from agent.src.logger import get_logger
+from agent.native.python.native_bridge import get_native_bridge
 
 
 class FileScanner:
     """Recursively discovers eligible backup files respecting policies and boundaries."""
 
-    def __init__(self, include_paths: List[str], exclude_paths: Optional[List[str]] = None):
+    def __init__(self, include_paths: List[str], exclude_paths: Optional[List[str]] = None, use_native: bool = True):
         self.include_paths = [canonicalize_path(p) for p in include_paths if p]
         self.exclude_paths = {canonicalize_path(p).lower() for p in (exclude_paths or []) if p}
+        self.use_native = use_native
         self.logger = get_logger()
 
     def _is_path_excluded(self, norm_path: str) -> bool:
@@ -25,6 +27,31 @@ class FileScanner:
 
     def scan(self) -> List[DiscoveredFile]:
         """Scan all configured include roots and return a deduplicated list of discovered files."""
+        # 1. Attempt Native Windows Win32 scan if enabled and available
+        if self.use_native:
+            bridge = get_native_bridge()
+            if bridge.is_available:
+                try:
+                    self.logger.debug("Executing native Windows Win32 FindFirstFileExW directory scan...")
+                    discovered = bridge.scan_directories(
+                        include_paths=self.include_paths,
+                        exclude_paths=list(self.exclude_paths)
+                    )
+                    self.logger.info(
+                        f"Native scan completed: Discovered {len(discovered)} files across "
+                        f"{len(self.include_paths)} roots."
+                    )
+                    return discovered
+                except Exception as e:
+                    self.logger.warning(
+                        f"Native scanner encountered error ({e}); falling back cleanly to Python scanner."
+                    )
+
+        # 2. Pure Python fallback scanner
+        return self._scan_python_fallback()
+
+    def _scan_python_fallback(self) -> List[DiscoveredFile]:
+        """Pure Python fallback directory scanning using os.walk."""
         discovered: List[DiscoveredFile] = []
         seen_files: Set[str] = set()
 
@@ -75,7 +102,7 @@ class FileScanner:
             except Exception as e:
                 self.logger.warning(f"Error scanning directory '{root}': {e}")
 
-        self.logger.info(f"Scan completed: Discovered {len(discovered)} files across {len(self.include_paths)} roots.")
+        self.logger.info(f"Python scan completed: Discovered {len(discovered)} files across {len(self.include_paths)} roots.")
         return discovered
 
     def _process_file(self, full_path: str, base_root: str) -> Optional[DiscoveredFile]:

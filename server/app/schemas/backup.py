@@ -10,6 +10,7 @@ class BackupRunCreate(BaseModel):
     files_discovered: int = 0
     bytes_total: int = 0
     baseline_run_id: Optional[int] = None
+    target_repository: Optional[str] = None
     prevent_concurrent: bool = False
 
 
@@ -51,6 +52,7 @@ class BackupRunResponse(BaseModel):
     client_id: int
     client_identifier: Optional[str] = None
     policy_id: Optional[int] = None
+    target_repository: Optional[str] = "repository"
     backup_type: str
     baseline_run_id: Optional[int] = None
     started_at: datetime.datetime

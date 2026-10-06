@@ -25,16 +25,38 @@ interface VirtualTreeNode {
 }
 
 export const RestorePage: React.FC = () => {
-  const { clients, playWin95Sound, addToast } = useApp();
+  const { clients, policies, playWin95Sound, addToast } = useApp();
 
   // Wizard steps: 1: Source & RP, 2: Browse & Select, 3: Destination & Policy, 4: Preview & Confirm, 5: Progress & Results
   const [currentStep, setCurrentStep] = useState<number>(1);
+
+  // Recovery Source Mode: 'SERVER' = Normal Server Recovery, 'DEVICE' = Source Recovery (Device Point of Recovery)
+  const [recoverySourceMode, setRecoverySourceMode] = useState<'SERVER' | 'DEVICE'>('SERVER');
 
   // Step 1: Client & Recovery Point
   const [selectedSourceClientId, setSelectedSourceClientId] = useState<string>('');
   const [recoveryPoints, setRecoveryPoints] = useState<RecoveryPointApiData[]>([]);
   const [selectedPointId, setSelectedPointId] = useState<number | null>(null);
   const [loadingPoints, setLoadingPoints] = useState<boolean>(false);
+
+  // Helper to determine if a client has on-device point of recovery enabled in its policy
+  const getClientPolicy = (client: (typeof clients)[0]) => {
+    return policies.find(p => 
+      p.id === client.policyId || 
+      p.name === client.policyName ||
+      (p.pointOfRecovery === 'device' && p.recoveryDeviceName?.toLowerCase() === client.hostname?.toLowerCase())
+    );
+  };
+
+  const isDeviceRecoveryEnabled = (client: (typeof clients)[0]) => {
+    const pol = getClientPolicy(client);
+    return pol?.pointOfRecovery === 'device';
+  };
+
+  const deviceRecoveryClients = clients.filter(c => isDeviceRecoveryEnabled(c));
+  const displayedClients = recoverySourceMode === 'DEVICE' ? deviceRecoveryClients : clients;
+  const activeSourceClient = clients.find(c => c.id === selectedSourceClientId);
+  const activeClientPolicy = activeSourceClient ? getClientPolicy(activeSourceClient) : null;
 
   // Step 2: Virtual File Tree & Selection
   const [fileTree, setFileTree] = useState<VirtualTreeNode | null>(null);
@@ -54,13 +76,57 @@ export const RestorePage: React.FC = () => {
   const [hasAcknowledgedCrossClient, setHasAcknowledgedCrossClient] = useState<boolean>(false);
   const [showCrossClientWarning, setShowCrossClientWarning] = useState<boolean>(false);
 
+  // Switch between Normal Server Recovery and Source Recovery (Device Point of Recovery)
+  const handleSetRecoverySourceMode = (mode: 'SERVER' | 'DEVICE') => {
+    playWin95Sound('click');
+    setRecoverySourceMode(mode);
+    if (mode === 'DEVICE') {
+      if (deviceRecoveryClients.length > 0) {
+        const targetClient = deviceRecoveryClients.find(c => c.id === selectedSourceClientId) || deviceRecoveryClients[0];
+        setSelectedSourceClientId(targetClient.id);
+        setSelectedTargetClientId(targetClient.id);
+        const pol = getClientPolicy(targetClient);
+        const devPath = pol?.deviceRecoveryPath || 'C:\\RetroVaultRecovery';
+        setAlternatePath(devPath);
+        setDestinationType('ALTERNATE');
+      }
+    } else {
+      if (clients.length > 0 && !clients.some(c => c.id === selectedSourceClientId)) {
+        setSelectedSourceClientId(clients[0].id);
+        setSelectedTargetClientId(clients[0].id);
+      }
+    }
+  };
+
+  const handleSelectSourceClient = (clientId: string) => {
+    setSelectedSourceClientId(clientId);
+    if (recoverySourceMode === 'DEVICE') {
+      setSelectedTargetClientId(clientId);
+      const client = clients.find(c => c.id === clientId);
+      if (client) {
+        const pol = getClientPolicy(client);
+        if (pol?.deviceRecoveryPath) {
+          setAlternatePath(pol.deviceRecoveryPath);
+        }
+      }
+      setDestinationType('ALTERNATE');
+    }
+  };
+
   // Sync selected clients with enrolled clients
   useEffect(() => {
-    if (!selectedSourceClientId && clients.length > 0) {
-      setSelectedSourceClientId(clients[0].id);
-      setSelectedTargetClientId(clients[0].id);
+    if (!selectedSourceClientId && displayedClients.length > 0) {
+      const first = displayedClients[0];
+      setSelectedSourceClientId(first.id);
+      setSelectedTargetClientId(first.id);
+      if (recoverySourceMode === 'DEVICE') {
+        const pol = getClientPolicy(first);
+        if (pol?.deviceRecoveryPath) {
+          setAlternatePath(pol.deviceRecoveryPath);
+        }
+      }
     }
-  }, [clients, selectedSourceClientId]);
+  }, [displayedClients, selectedSourceClientId, recoverySourceMode]);
 
   // Step 4: Preview
   const [previewData, setPreviewData] = useState<RestorePreviewData | null>(null);
@@ -479,6 +545,19 @@ export const RestorePage: React.FC = () => {
             ))}
           </div>
 
+          <div className="win-box-inset bg-white p-1.5 border border-[#808080] text-[11px] flex flex-col gap-1 mt-1">
+            <span className="font-bold text-gray-700">Point of Recovery Mode:</span>
+            <span className={`font-bold flex items-center gap-1 ${recoverySourceMode === 'DEVICE' ? 'text-blue-900' : 'text-gray-900'}`}>
+              <span>{recoverySourceMode === 'DEVICE' ? '💻' : '🖥️'}</span>
+              <span>{recoverySourceMode === 'DEVICE' ? 'Source Device Recovery' : 'Normal Server Recovery'}</span>
+            </span>
+            {recoverySourceMode === 'DEVICE' && (
+              <span className="text-[10px] text-gray-600 font-mono truncate" title={alternatePath}>
+                Path: {alternatePath || 'C:\\RetroVaultRecovery'}
+              </span>
+            )}
+          </div>
+
           <div className="mt-auto pt-3 border-t border-[#808080] flex flex-col gap-1.5 text-xs">
             <span className="font-bold text-[11px]">System Status:</span>
             <span className="text-green-800 font-bold">● CAS Engine Online</span>
@@ -491,40 +570,223 @@ export const RestorePage: React.FC = () => {
           {/* STEP 1: Source Workstation & Recovery Point */}
           {currentStep === 1 && (
             <div className="flex flex-col gap-3">
-              <h2 className="font-bold text-sm bg-[#808080] text-white px-2 py-1">
-                Select Source Workstation & Recovery Point
+              <h2 className="font-bold text-sm bg-[#808080] text-white px-2 py-1 flex items-center justify-between">
+                <span>Select Point of Recovery & Source Workstation</span>
+                <span className="text-[10px] font-mono font-normal">
+                  Mode: {recoverySourceMode === 'DEVICE' ? 'Source Device' : 'Server Repository'}
+                </span>
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold">Source Workstation Client:</label>
-                  <select 
-                    value={selectedSourceClientId} 
-                    onChange={e => setSelectedSourceClientId(e.target.value)}
-                    className="win-box-inset bg-white p-1 text-xs border border-[#808080]"
-                  >
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.hostname} ({c.id}) - {c.os}
-                      </option>
-                    ))}
-                  </select>
+              {/* Point of Recovery Source Selection (Normal Server vs Source Device) */}
+              <div className="win-box-inset bg-[#dfdfdf] p-2 border border-[#808080] flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-[#000080] uppercase tracking-wide">
+                    Point of Recovery Source Mode:
+                  </span>
+                  <span className="text-[10px] bg-white px-2 py-0.5 border border-[#a0a0a0] font-mono">
+                    {deviceRecoveryClients.length} Device(s) Enabled for On-Device Recovery
+                  </span>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold">Restore Mode:</label>
-                  <select 
-                    value={restoreMode} 
-                    onChange={e => setRestoreMode(e.target.value as any)}
-                    className="win-box-inset bg-white p-1 text-xs border border-[#808080]"
-                  >
-                    <option value="FULL_RECOVERY_POINT">FULL_RECOVERY_POINT (Complete Logical State)</option>
-                    <option value="FOLDER">FOLDER (Entire Directory Tree)</option>
-                    <option value="FILE">FILE (Individual File)</option>
-                    <option value="SELECTION">SELECTION (Custom Chosen Files)</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className={`flex items-start gap-2 p-2 border cursor-pointer select-none ${
+                    recoverySourceMode === 'SERVER' 
+                      ? 'bg-white border-[#000080] shadow-[inset_1px_1px_0px_#000]' 
+                      : 'bg-[#cfcfcf] border-[#808080] hover:bg-[#d8d8d8]'
+                  }`}>
+                    <input 
+                      type="radio" 
+                      name="recoverySourceMode" 
+                      checked={recoverySourceMode === 'SERVER'} 
+                      onChange={() => handleSetRecoverySourceMode('SERVER')}
+                      className="mt-0.5 cursor-pointer" 
+                    />
+                    <div>
+                      <div className="font-bold text-xs flex items-center gap-1.5">
+                        <span>🖥️</span> Normal Server Recovery
+                      </div>
+                      <div className="text-[11px] text-gray-600 mt-0.5 leading-snug">
+                        Standard restore from central Backup Server vault repository.
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-2 p-2 border cursor-pointer select-none ${
+                    recoverySourceMode === 'DEVICE' 
+                      ? 'bg-white border-[#000080] shadow-[inset_1px_1px_0px_#000]' 
+                      : 'bg-[#cfcfcf] border-[#808080] hover:bg-[#d8d8d8]'
+                  }`}>
+                    <input 
+                      type="radio" 
+                      name="recoverySourceMode" 
+                      checked={recoverySourceMode === 'DEVICE'} 
+                      onChange={() => handleSetRecoverySourceMode('DEVICE')}
+                      className="mt-0.5 cursor-pointer" 
+                    />
+                    <div>
+                      <div className="font-bold text-xs flex items-center gap-1.5 text-[#000080]">
+                        <span>💻</span> Source Recovery (Device Point of Recovery)
+                      </div>
+                      <div className="text-[11px] text-gray-600 mt-0.5 leading-snug">
+                        Restore directly using on-device recovery cache on enabled devices.
+                      </div>
+                    </div>
+                  </label>
                 </div>
               </div>
+
+              {/* Mode-Specific Configuration Panel */}
+              {recoverySourceMode === 'DEVICE' ? (
+                deviceRecoveryClients.length === 0 ? (
+                  <div className="bg-[#fff9db] border border-[#f59f00] p-3 text-xs text-[#664d03] flex items-center gap-2">
+                    <WarningIcon size={18} />
+                    <div>
+                      <strong>No devices currently enabled for On-Device Point of Recovery.</strong><br />
+                      To enable, navigate to <em>Policies</em>, edit or create a policy with <strong>Point of Recovery: Device (Source PC)</strong>, and assign it to a workstation.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* Device Workstation Selection (Only Enabled Devices) */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold flex items-center justify-between">
+                          <span>Source Workstation (Device-Enabled Only):</span>
+                          <span className="text-[10px] text-green-700 font-semibold font-mono">
+                            ● {deviceRecoveryClients.length} Online
+                          </span>
+                        </label>
+                        <select 
+                          value={selectedSourceClientId} 
+                          onChange={e => handleSelectSourceClient(e.target.value)}
+                          className="win-box-inset bg-white p-1 text-xs border border-[#808080] font-medium"
+                        >
+                          {deviceRecoveryClients.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.hostname} ({c.id}) - {c.os} [{getClientPolicy(c)?.name || 'Custom Policy'}]
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Device Recovery Scope (Full Recovery vs Selected One) */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-black flex items-center justify-between">
+                          <span>Device Recovery Scope:</span>
+                          <span className="text-[10px] text-blue-900 font-semibold">Full vs Selected One</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setRestoreMode('FULL_RECOVERY_POINT')}
+                            className={`p-1.5 text-xs text-left border flex items-center gap-1.5 ${
+                              restoreMode === 'FULL_RECOVERY_POINT' 
+                                ? 'bg-[#000080] text-white font-bold border-black' 
+                                : 'bg-white text-black border-[#808080] hover:bg-gray-100'
+                            }`}
+                          >
+                            <span>📦</span>
+                            <div>
+                              <div className="font-bold leading-none">Full Recovery</div>
+                              <div className="text-[10px] opacity-80 mt-0.5 leading-tight">All Files &amp; State</div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRestoreMode('SELECTION')}
+                            className={`p-1.5 text-xs text-left border flex items-center gap-1.5 ${
+                              restoreMode === 'SELECTION' 
+                                ? 'bg-[#000080] text-white font-bold border-black' 
+                                : 'bg-white text-black border-[#808080] hover:bg-gray-100'
+                            }`}
+                          >
+                            <span>📁</span>
+                            <div>
+                              <div className="font-bold leading-none">Selected One</div>
+                              <div className="text-[10px] opacity-80 mt-0.5 leading-tight">Specific Files Only</div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Path Location Where Recovered Items Need to Be Saved on Device */}
+                    <div className="win-box-inset bg-[#eef3f9] p-2.5 border border-[#1a73e8] flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-[#000080] flex items-center gap-1.5">
+                          <span>📂</span> Path Location Where Recovered Things Should Be Saved:
+                        </label>
+                        <span className="text-[10px] text-gray-600 font-mono">
+                          Target Device: {activeSourceClient?.hostname || 'Source Device'}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          value={alternatePath}
+                          onChange={e => {
+                            setAlternatePath(e.target.value);
+                            setDestinationType('ALTERNATE');
+                          }}
+                          placeholder="e.g. C:\RetroVaultRecovery or D:\Restored_Files"
+                          className="win-box-inset bg-white p-1 text-xs font-mono font-bold border border-[#808080] flex-1 text-black"
+                        />
+                        {activeClientPolicy?.deviceRecoveryPath && alternatePath !== activeClientPolicy.deviceRecoveryPath && (
+                          <WinButton
+                            onClick={() => {
+                              setAlternatePath(activeClientPolicy.deviceRecoveryPath!);
+                              setDestinationType('ALTERNATE');
+                            }}
+                            className="text-[10px] whitespace-nowrap"
+                          >
+                            Reset to Policy Path
+                          </WinButton>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[#003366] bg-white p-1.5 border border-[#b0c4de] flex items-center justify-between">
+                        <span>
+                          ✅ Recovered data will be put into: <strong className="font-mono text-black">{alternatePath || '(location required)'}</strong> and sent back to device <strong className="font-mono text-black">{activeSourceClient?.hostname}</strong>.
+                        </span>
+                        <span className="text-[9px] bg-green-100 text-green-900 border border-green-400 font-bold px-1.5 py-0.5 uppercase">
+                          Direct Device Path
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                /* Normal Server Recovery Workstation & Mode Inputs */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold">Source Workstation Client:</label>
+                    <select 
+                      value={selectedSourceClientId} 
+                      onChange={e => handleSelectSourceClient(e.target.value)}
+                      className="win-box-inset bg-white p-1 text-xs border border-[#808080]"
+                    >
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.hostname} ({c.id}) - {c.os}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold">Restore Mode:</label>
+                    <select 
+                      value={restoreMode} 
+                      onChange={e => setRestoreMode(e.target.value as any)}
+                      className="win-box-inset bg-white p-1 text-xs border border-[#808080]"
+                    >
+                      <option value="FULL_RECOVERY_POINT">FULL_RECOVERY_POINT (Complete Logical State)</option>
+                      <option value="FOLDER">FOLDER (Entire Directory Tree)</option>
+                      <option value="FILE">FILE (Individual File)</option>
+                      <option value="SELECTION">SELECTION (Custom Chosen Files)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {/* Recovery Points Table */}
               <div className="flex flex-col gap-1 mt-2">
@@ -575,15 +837,40 @@ export const RestorePage: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-2 mt-auto pt-3">
-                <WinButton 
-                  onClick={() => {
-                    playWin95Sound('click');
-                    setCurrentStep(2);
-                  }}
-                  disabled={!selectedPointId}
-                >
-                  Next: Select Files &gt;&gt;
-                </WinButton>
+                {restoreMode === 'FULL_RECOVERY_POINT' ? (
+                  <>
+                    <WinButton 
+                      onClick={() => {
+                        playWin95Sound('click');
+                        setCurrentStep(2);
+                      }}
+                      disabled={!selectedPointId}
+                    >
+                      Browse Files &gt;&gt;
+                    </WinButton>
+                    <WinButton 
+                      onClick={() => {
+                        playWin95Sound('click');
+                        setCurrentStep(3);
+                      }}
+                      disabled={!selectedPointId}
+                      className="font-bold bg-[#000080] text-white"
+                    >
+                      Next: Confirm Destination &gt;&gt;
+                    </WinButton>
+                  </>
+                ) : (
+                  <WinButton 
+                    onClick={() => {
+                      playWin95Sound('click');
+                      setCurrentStep(2);
+                    }}
+                    disabled={!selectedPointId}
+                    className="font-bold"
+                  >
+                    Next: Select Files &gt;&gt;
+                  </WinButton>
+                )}
               </div>
             </div>
           )}
@@ -653,51 +940,89 @@ export const RestorePage: React.FC = () => {
                 Destination Client & Conflict Policies
               </h2>
 
+              {/* Source Device Recovery Informational Banner */}
+              {recoverySourceMode === 'DEVICE' && (
+                <div className="bg-[#e8f0fe] border border-[#1a73e8] p-2 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">💻</span>
+                    <div>
+                      <div className="font-bold text-[#1a73e8]">Source Device Recovery Active</div>
+                      <div className="text-[11px] text-gray-700">
+                        Recovered files will be sent back directly to <strong>{activeSourceClient?.hostname}</strong> and saved in <strong className="font-mono">{effectiveDestinationRoot}</strong>.
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-[#1a73e8] text-white px-2 py-0.5 font-bold uppercase">
+                    On-Device Mode
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 {/* Destination Workstation */}
                 <div className="win-box-inset bg-white p-2.5 border border-[#808080] flex flex-col gap-2">
                   <span className="font-bold text-blue-900">Destination Client:</span>
-                  <select 
-                    value={selectedTargetClientId} 
-                    onChange={e => {
-                      const newTarget = e.target.value;
-                      setSelectedTargetClientId(newTarget);
-                      if (newTarget !== selectedSourceClientId) {
-                        setHasAcknowledgedCrossClient(false);
-                        setShowCrossClientWarning(true);
-                      }
-                    }}
-                    className="p-1 border border-[#808080]"
-                  >
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.hostname} ({c.id}) {c.id === selectedSourceClientId ? '[Original]' : '[Cross-Client Alternate]'}
-                      </option>
-                    ))}
-                  </select>
+                  {recoverySourceMode === 'DEVICE' ? (
+                    <div className="p-1.5 bg-gray-100 border border-[#808080] flex items-center justify-between">
+                      <span className="font-bold font-mono text-xs">
+                        {activeSourceClient?.hostname || selectedSourceClientId} ({selectedSourceClientId}) [Source Device]
+                      </span>
+                      <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 border border-green-300 font-bold">
+                        Target Locked
+                      </span>
+                    </div>
+                  ) : (
+                    <select 
+                      value={selectedTargetClientId} 
+                      onChange={e => {
+                        const newTarget = e.target.value;
+                        setSelectedTargetClientId(newTarget);
+                        if (newTarget !== selectedSourceClientId) {
+                          setHasAcknowledgedCrossClient(false);
+                          setShowCrossClientWarning(true);
+                        }
+                      }}
+                      className="p-1 border border-[#808080]"
+                    >
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.hostname} ({c.id}) {c.id === selectedSourceClientId ? '[Original]' : '[Cross-Client Alternate]'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
 
-                  {isCrossClient && (
+                  {isCrossClient && recoverySourceMode !== 'DEVICE' && (
                     <div className="bg-yellow-100 border border-yellow-500 p-1.5 flex items-center gap-1.5 text-[11px] text-yellow-900">
                       <WarningIcon size={16} />
                       <span>Cross-client restore requires explicit administrator acknowledgement.</span>
                     </div>
                   )}
 
-                  <label className="flex items-center gap-1.5 font-bold mt-1">
-                    <input 
-                      type="checkbox" 
-                      checked={hasAcknowledgedCrossClient} 
-                      onChange={e => setHasAcknowledgedCrossClient(e.target.checked)} 
-                    />
-                    Acknowledge Cross-Client Permission
-                  </label>
+                  {recoverySourceMode !== 'DEVICE' && (
+                    <label className="flex items-center gap-1.5 font-bold mt-1">
+                      <input 
+                        type="checkbox" 
+                        checked={hasAcknowledgedCrossClient} 
+                        onChange={e => setHasAcknowledgedCrossClient(e.target.checked)} 
+                      />
+                      Acknowledge Cross-Client Permission
+                    </label>
+                  )}
                 </div>
 
                 {/* Destination Path */}
                 <div className="win-box-inset bg-white p-2.5 border border-[#808080] flex flex-col gap-2">
-                  <span className="font-bold text-blue-900">Destination Location:</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-blue-900">Destination Location:</span>
+                    {recoverySourceMode === 'DEVICE' && (
+                      <span className="text-[10px] bg-blue-100 text-blue-900 px-1.5 py-0.5 border border-blue-300 font-bold">
+                        Device Save Location
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-4">
-                    <label className="flex items-center gap-1">
+                    <label className="flex items-center gap-1 cursor-pointer">
                       <input 
                         type="radio" 
                         name="destType" 
@@ -706,28 +1031,46 @@ export const RestorePage: React.FC = () => {
                       />
                       Original Path
                     </label>
-                    <label className="flex items-center gap-1">
+                    <label className="flex items-center gap-1 cursor-pointer">
                       <input 
                         type="radio" 
                         name="destType" 
                         checked={destinationType === 'ALTERNATE'} 
                         onChange={() => setDestinationType('ALTERNATE')} 
                       />
-                      Alternate Path
+                      {recoverySourceMode === 'DEVICE' ? 'Device Save Location (Target Path)' : 'Alternate Path'}
                     </label>
                   </div>
 
                   {destinationType === 'ALTERNATE' && (
-                    <input
-                      type="text"
-                      value={alternatePath}
-                      onChange={e => setAlternatePath(e.target.value)}
-                      placeholder="e.g. C:\Restored_Files"
-                      className="p-1 border border-[#808080] font-mono text-xs"
-                    />
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="text"
+                        value={alternatePath}
+                        onChange={e => setAlternatePath(e.target.value)}
+                        placeholder="e.g. C:\RetroVaultRecovery or C:\Restored_Files"
+                        className="p-1 border border-[#808080] font-mono text-xs w-full"
+                      />
+                      {recoverySourceMode === 'DEVICE' && activeClientPolicy?.deviceRecoveryPath && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAlternatePath(activeClientPolicy.deviceRecoveryPath!)}
+                            className="text-[10px] bg-[#dcdcdc] border border-[#808080] px-1.5 py-0.5 hover:bg-[#c0c0c0]"
+                          >
+                            Reset to Policy Path ({activeClientPolicy.deviceRecoveryPath})
+                          </button>
+                          <span className="text-[10px] text-gray-500">
+                            Files will be sent back directly to this path on {activeSourceClient?.hostname}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   )}
                   <span className="text-[10px] text-gray-500">
-                    Safe containment prevents path traversal and reserved device names.
+                    {recoverySourceMode === 'DEVICE' 
+                      ? `Recovered thing will be put in this location and sent back to ${activeSourceClient?.hostname}.`
+                      : 'Safe containment prevents path traversal and reserved device names.'}
                   </span>
                 </div>
 

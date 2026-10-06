@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
@@ -150,6 +151,7 @@ def get_agent_config(client_id: str, db: Session = Depends(get_db)):
             "encryption_enabled": policy.encryption_enabled,
             "cpu_limit_percent": policy.cpu_limit_percent,
             "network_limit_mbps": policy.network_limit_mbps,
+            "target_repository": getattr(policy, "target_repository", "repository") or "repository",
             "paths": paths
         }
 

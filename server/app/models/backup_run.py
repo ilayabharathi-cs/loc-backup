@@ -38,6 +38,7 @@ class BackupRun(Base):
     error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     policy_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("backup_policies.id", ondelete="SET NULL"), nullable=True, index=True)
+    target_repository: Mapped[Optional[str]] = mapped_column(String(100), default="repository", nullable=True)
     baseline_run_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("backup_runs.id", ondelete="SET NULL"), nullable=True, index=True)
 
     job = relationship("BackupJob", back_populates="runs")
