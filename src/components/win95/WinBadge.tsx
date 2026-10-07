@@ -37,6 +37,10 @@ export const WinBadge: React.FC<WinBadgeProps> = ({
         dotColor = '#0055ff';
         text = 'BACKING UP';
         break;
+      case 'WAITING':
+        dotColor = '#ff5500';
+        text = 'WAITING';
+        break;
     }
   } else if (type === 'job') {
     switch (status) {

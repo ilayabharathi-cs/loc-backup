@@ -1,4 +1,4 @@
-export type ClientStatus = 'ONLINE' | 'OFFLINE' | 'WARNING' | 'BACKING_UP' | 'DISCONNECTED';
+export type ClientStatus = 'ONLINE' | 'OFFLINE' | 'WARNING' | 'BACKING_UP' | 'DISCONNECTED' | 'WAITING';
 
 export interface Client {
   id: string;

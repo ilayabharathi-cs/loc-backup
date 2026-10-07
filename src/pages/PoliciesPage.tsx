@@ -4,7 +4,7 @@ import type { BackupPolicy } from '../types';
 import { WinButton } from '../components/win95/WinButton';
 import { WinCheckbox } from '../components/win95/WinFormControls';
 import { WinDialog } from '../components/win95/WinDialog';
-import { ShieldCheckIcon, ComputerIcon } from '../components/win95/WinIcons';
+import { ShieldCheckIcon, ComputerIcon, BackupTapeIcon } from '../components/win95/WinIcons';
 
 const REPOSITORY_PRESETS = [
   { id: 'repository', label: 'repository (Default Global Storage)', description: 'Primary centralized vault root' },
@@ -19,7 +19,7 @@ const REPOSITORY_PRESETS = [
 ];
 
 export const PoliciesPage: React.FC = () => {
-  const { policies, clients, updatePolicy, applyPolicyToClients } = useApp();
+  const { policies, clients, updatePolicy, applyPolicyToClients, markClientWaiting, triggerBackup } = useApp();
 
   const [selectedPolicyId, setSelectedPolicyId] = useState<string>(policies[0]?.id || 'POL-001');
   const currentPolicy = policies.find(p => p.id === selectedPolicyId) || policies[0];
@@ -48,6 +48,7 @@ export const PoliciesPage: React.FC = () => {
 
   // Apply to clients modal
   const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
+  const [showPromptModal, setShowPromptModal] = useState<boolean>(false);
   const [targetClientIds, setTargetClientIds] = useState<string[]>(
     clients.filter(c => c.policyId === currentPolicy.id).map(c => c.id)
   );
@@ -126,6 +127,7 @@ export const PoliciesPage: React.FC = () => {
   const handleConfirmApply = () => {
     applyPolicyToClients(currentPolicy.id, targetClientIds);
     setShowApplyModal(false);
+    setShowPromptModal(true);
   };
 
   return (
@@ -737,6 +739,36 @@ export const PoliciesPage: React.FC = () => {
             </div>
             <span><b>{targetClientIds.length}</b> workstations selected</span>
           </div>
+        </div>
+      </WinDialog>
+
+      {/* Start or Wait Backup Prompt Modal */}
+      <WinDialog
+        isOpen={showPromptModal}
+        onClose={() => setShowPromptModal(false)}
+        title="Backup Confirmation"
+        icon={<BackupTapeIcon size={16} />}
+        width={350}
+        okText="Start Backup"
+        onOk={() => {
+          targetClientIds.forEach(id => triggerBackup(id));
+          setShowPromptModal(false);
+        }}
+        extraFooterButtons={
+          <div className="mr-auto">
+            <WinButton
+              onClick={() => {
+                markClientWaiting(targetClientIds);
+                setShowPromptModal(false);
+              }}
+            >
+              Wait
+            </WinButton>
+          </div>
+        }
+      >
+        <div className="p-3 text-[12px] text-black bg-white win-inset">
+          Policy applied successfully! Do you want to start the backup for the selected clients now, or wait?
         </div>
       </WinDialog>
     </div>

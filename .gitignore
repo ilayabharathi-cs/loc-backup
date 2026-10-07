@@ -40,3 +40,4 @@ server/repository/
 server/app/reports_storage/*
 !server/app/reports_storage/.gitkeep
 
+\n# SQLite temporary files\n*.db-shm\n*.db-wal

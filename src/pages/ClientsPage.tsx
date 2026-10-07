@@ -183,13 +183,27 @@ export const ClientsPage: React.FC = () => {
       align: 'center',
       render: (client) => (
         <div className="flex items-center justify-center gap-1">
-          <WinButton
-            size="sm"
-            onClick={() => triggerBackup(client.id)}
-            title="Run manual incremental snapshot"
-          >
-            Backup
-          </WinButton>
+          {client.status === 'WAITING' ? (
+            <WinButton
+              size="sm"
+              onClick={() => triggerBackup(client.id)}
+              title="Run manual incremental snapshot"
+            >
+              Start
+            </WinButton>
+          ) : client.status === 'RUNNING' || client.status === 'BACKING_UP' ? (
+            <WinButton size="sm" disabled>
+              Running
+            </WinButton>
+          ) : (
+            <WinButton
+              size="sm"
+              onClick={() => triggerBackup(client.id)}
+              title="Run manual incremental snapshot"
+            >
+              Backup
+            </WinButton>
+          )}
           <WinButton
             size="sm"
             onClick={() => setDetailModalClientId(client.id)}
