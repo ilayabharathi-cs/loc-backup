@@ -8,7 +8,7 @@ import os
 import sys
 from typing import List, Dict, Any, Optional
 
-from agent.src.platform.base import PlatformAdapter, FileReadInspection
+from agent.src.platform_adapter.base import PlatformAdapter, FileReadInspection
 from agent.src.backup.models import DiscoveredFile
 from agent.src.snapshot.provider import SnapshotProvider, VssSnapshotProvider, LiveFallbackSnapshotProvider
 from agent.src.logger import get_logger

@@ -141,13 +141,13 @@ echo ---------------------------------------------------------------------
 
 cd /d "%APP_DIR%"
 
-%PYTHON_EXE% -c "import urllib.request, json, sys; cfg=json.load(open(r'%CONFIG_FILE%')); sys.stdout.write('[OK] Connected! Server: ' + urllib.request.urlopen(cfg['server_url']+'/health', timeout=5).read().decode() + '\n')"
-if %ERRORLEVEL% neq 0 (
+%PYTHON_EXE% -c "import urllib.request, json, sys; cfg=json.load(open(r'%CONFIG_FILE%')); res=urllib.request.urlopen(cfg['server_url']+'/health', timeout=5); sys.stdout.write('[OK] Connected! Server status: ' + res.read().decode() + '\n'); sys.exit(0)"
+if !ERRORLEVEL! neq 0 (
     echo.
     echo [WARNING] Could not reach the server right now.
     echo Please verify:
-    echo  1. The Linux server is running (port 8000)
-    echo  2. Firewall allows port 8000 on the Linux machine
+    echo  1. The server is running (port 8000)
+    echo  2. Firewall allows port 8000 on the host machine
     echo.
     set /p RETRY="Start agent anyway and retry in background? (Y/n): "
     if /i "!RETRY!"=="n" goto END

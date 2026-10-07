@@ -25,7 +25,7 @@ class BackupLock:
             lock_dir = custom_dir
         else:
             try:
-                from agent.src.platform import get_platform_adapter
+                from agent.src.platform_adapter import get_platform_adapter
                 lock_dir = get_platform_adapter().get_lock_directory()
             except Exception:
                 prog_data = get_programdata_path()

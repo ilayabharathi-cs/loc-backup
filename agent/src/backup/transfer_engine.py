@@ -14,7 +14,7 @@ from agent.src.backup.hashing import calculate_file_sha256
 from agent.src.backup.retry_engine import RetryEngine
 from agent.src.backup.checkpoint_manager import CheckpointManager, BackupCheckpointData
 from agent.src.windows.locked_files import LockedFileHandler, FileLockState
-from agent.src.platform import get_platform_adapter, PlatformAdapter
+from agent.src.platform_adapter import get_platform_adapter, PlatformAdapter
 from agent.src.logger import get_logger
 
 

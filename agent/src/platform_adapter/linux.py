@@ -17,7 +17,7 @@ import platform
 import datetime
 from typing import List, Dict, Any, Optional, Set
 
-from agent.src.platform.base import PlatformAdapter, FileReadInspection
+from agent.src.platform_adapter.base import PlatformAdapter, FileReadInspection
 from agent.src.backup.models import DiscoveredFile
 from agent.src.snapshot.provider import SnapshotProvider, LinuxSnapshotProvider
 from agent.src.logger import get_logger

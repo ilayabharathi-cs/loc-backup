@@ -12,7 +12,7 @@ from agent.src.utils.filesystem import atomic_write_json, ensure_directory
 def get_default_identity_path() -> str:
     """Return platform standard identity.json path."""
     try:
-        from agent.src.platform import get_platform_adapter
+        from agent.src.platform_adapter import get_platform_adapter
         return get_platform_adapter().get_device_identity_path()
     except Exception:
         from agent.src.utils.windows import get_programdata_path

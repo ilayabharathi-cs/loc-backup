@@ -28,7 +28,7 @@ from agent.src.backup.run_state import RunState, RunStateMachine
 from agent.src.backup.checkpoint_manager import CheckpointManager
 from agent.src.backup.retry_engine import RetryEngine
 from agent.src.backup.transfer_engine import TransferEngine
-from agent.src.platform import get_platform_adapter, PlatformAdapter
+from agent.src.platform_adapter import get_platform_adapter, PlatformAdapter
 from agent.src.utils.lock import BackupLock, BackupConcurrencyError
 from agent.src.logger import get_logger
 

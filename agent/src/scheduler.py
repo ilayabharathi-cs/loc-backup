@@ -19,7 +19,7 @@ from agent.src.config import AgentConfig
 from agent.src.identity import DeviceIdentity
 from agent.src.api_client import BackendApiClient, ApiClientError
 from agent.src.policy_resolver import PolicyResolver, ResolvedPolicy
-from agent.src.platform import get_platform_adapter, PlatformAdapter
+from agent.src.platform_adapter import get_platform_adapter, PlatformAdapter
 from agent.src.backup.backup_engine import BackupEngine
 from agent.src.logger import get_logger
 

@@ -28,7 +28,7 @@ class FileScanner:
     def scan(self) -> List[DiscoveredFile]:
         """Scan all configured include roots and return a deduplicated list of discovered files."""
         # 1. On Linux / POSIX platforms, utilize streaming scandir and device filtering
-        from agent.src.platform import get_platform_adapter
+        from agent.src.platform_adapter import get_platform_adapter
         adapter = get_platform_adapter()
         if adapter.os_name == "Linux":
             return adapter.scan_directories(

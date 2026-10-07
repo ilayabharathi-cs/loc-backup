@@ -7,9 +7,9 @@ Provides clean OS-specific abstractions:
 
 import sys
 from typing import Optional
-from agent.src.platform.base import PlatformAdapter, FileReadInspection
-from agent.src.platform.windows import WindowsPlatformAdapter
-from agent.src.platform.linux import LinuxPlatformAdapter
+from agent.src.platform_adapter.base import PlatformAdapter, FileReadInspection
+from agent.src.platform_adapter.windows import WindowsPlatformAdapter
+from agent.src.platform_adapter.linux import LinuxPlatformAdapter
 
 _CURRENT_ADAPTER: Optional[PlatformAdapter] = None
 
