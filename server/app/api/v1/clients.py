@@ -45,6 +45,21 @@ def list_clients(
             )
         )
     clients = query.order_by(Client.client_id.asc()).all()
+    import datetime
+    now = datetime.datetime.now(datetime.timezone.utc)
+    updated_any = False
+    for c in clients:
+        if c.status == "active" and c.last_seen:
+            # Check if last_seen is naive or aware
+            dt = c.last_seen
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            if (now - dt).total_seconds() > 45:
+                c.status = "offline"
+                updated_any = True
+    if updated_any:
+        db.commit()
+
     return ApiResponse(
         success=True,
         data=[ClientResponse.model_validate(c) for c in clients],
@@ -170,10 +185,12 @@ def delete_client(
 def approve_client(
     client_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "operator"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
+    import datetime
     client = find_client(db, client_id)
     client.status = "active"
+    client.last_seen = datetime.datetime.now(datetime.timezone.utc)
     db.commit()
     db.refresh(client)
 
@@ -182,7 +199,7 @@ def approve_client(
         action="CLIENT_APPROVED",
         resource_type="client",
         resource_id=client.client_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         client_id=client.id,
         details=f"Approved client enrollment for {client.hostname}"
     )

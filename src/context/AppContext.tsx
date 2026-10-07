@@ -32,6 +32,7 @@ interface AppContextType {
   updateClientPaths: (clientId: string, customPaths: string[], excludedPaths: string[]) => void;
   markClientWaiting: (clientIds: string[]) => void;
   disconnectClient: (clientId: string) => void;
+  enableClient: (clientId: string) => void;
   deleteClient: (clientId: string) => void;
   executeRestore: (
     sourceClientId: string, 
@@ -238,7 +239,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const clientsRes = await clientsApi.list();
       if (clientsRes.success && Array.isArray(clientsRes.data)) {
         const mappedClients: Client[] = clientsRes.data.map((c: ClientApiData) => {
-          const statusUpper = c.status === 'active' ? 'ONLINE' : c.status === 'offline' ? 'OFFLINE' : c.status === 'disabled' ? 'WARNING' : 'ONLINE';
+          const statusUpper = c.status === 'active' ? 'ONLINE' : (c.status === 'offline' || c.status === 'disconnected') ? 'OFFLINE' : c.status === 'disabled' ? 'WARNING' : 'ONLINE';
           
           const cidStr = `PC-${c.client_id}`;
           const clientJobs = mappedJobs.filter((j: BackupJob) => j.clientId === cidStr || j.clientId === c.client_id);
@@ -440,7 +441,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updatePolicy = async (updated: BackupPolicy) => {
     playWin95Sound('click');
     try {
-      const numId = parseInt(updated.id.replace(/\D/g, ''), 10) || 1;
+      const numId = parseInt(updated.id.replace(/\D/g, ''), 10);
       
       const apiPaths: any[] = [];
       updated.protectedFolders.forEach(f => {
@@ -455,7 +456,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         apiPaths.push({ path_type: 'universal', path_value: p, is_excluded: true });
       });
 
-      await policiesApi.update(numId, {
+      const payload = {
         name: updated.name,
         description: updated.description,
         target_repository: updated.targetRepository || 'repository',
@@ -467,7 +468,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         cpu_limit_percent: updated.cpuLimitPercent,
         network_limit_mbps: updated.networkLimitMbps,
         paths: apiPaths
-      });
+      };
+
+      // Determine if it's a new policy (does not exist in DB yet)
+      const existingPolicy = policies.find(p => p.id === updated.id);
+      if (!existingPolicy || updated.id.includes('NEW')) {
+        await policiesApi.create(payload);
+      } else {
+        await policiesApi.update(numId || 1, payload);
+      }
     } catch {
       // Fallback
     }
@@ -477,6 +486,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return exists ? prev.map(p => p.id === updated.id ? updated : p) : [...prev, updated];
     });
     addToast('Policy Saved', `Backup policy "${updated.name}" updated in database`, 'success');
+    await refreshBackendData(); // Ensure clients fetch the updated inherited paths
   };
 
   const applyPolicyToClients = async (policyId: string, clientIds: string[]) => {
@@ -527,6 +537,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'DISCONNECTED' } : c));
       addToast('Client Disconnected (Local)', `Disconnect signal sent to client ${clientId} (Mock mode)`, 'info');
+    }
+  };
+
+  const enableClient = async (clientId: string) => {
+    playWin95Sound('click');
+    try {
+      await clientsApi.approve(clientId);
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'ONLINE' } : c));
+      addToast('Client Enabled', `Client ${clientId} is enabled. Agent can now reconnect.`, 'success');
+      refreshBackendData();
+    } catch {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'ONLINE' } : c));
+      addToast('Client Enabled (Local)', `Client ${clientId} is enabled (Mock mode)`, 'info');
     }
   };
 
@@ -614,6 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateClientPaths,
       markClientWaiting,
       disconnectClient,
+      enableClient,
       deleteClient,
       executeRestore,
       verifyStorage,

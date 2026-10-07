@@ -17,13 +17,14 @@ def register_agent(request: AgentRegisterRequest, db: Session = Depends(get_db))
     client = db.query(Client).filter(Client.device_id == request.device_id).first()
     if client:
         # Update existing client information
-        client.hostname = request.hostname
+        if not client.hostname or client.hostname.startswith("Client-PC-"):
+            client.hostname = request.hostname
         client.ip_address = request.ip_address
         client.agent_version = request.agent_version
         client.os = request.os
         client.os_version = request.os_version
         client.last_seen = datetime.datetime.now(datetime.timezone.utc)
-        if client.status == "offline":
+        if client.status in ["offline", "disconnected", "pending"]:
             client.status = "active"
         db.commit()
         db.refresh(client)

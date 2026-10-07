@@ -12,7 +12,7 @@ import { ClientDetailDialog } from '../components/dialogs/ClientDetailDialog';
 import { ComputerIcon, BackupTapeIcon, RestoreArrowIcon, ActivityLogIcon, ShieldCheckIcon } from '../components/win95/WinIcons';
 
 export const ClientsPage: React.FC = () => {
-  const { clients, triggerBackup, disconnectClient, deleteClient, addToast } = useApp();
+  const { clients, triggerBackup, disconnectClient, enableClient, deleteClient, addToast } = useApp();
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -79,11 +79,17 @@ export const ClientsPage: React.FC = () => {
       action: () => setDetailModalClientId(client.id),
     },
     { divider: true, label: '', action: () => {} },
-    {
-      label: 'Disconnect Agent...',
-      icon: <ActivityLogIcon size={14} />,
-      action: () => disconnectClient(client.id),
-    },
+    (client.status === 'OFFLINE' || client.status === 'DISCONNECTED' || client.status === 'WARNING')
+      ? {
+          label: 'Enable Agent...',
+          icon: <ActivityLogIcon size={14} />,
+          action: () => enableClient(client.id),
+        }
+      : {
+          label: 'Disconnect Agent...',
+          icon: <ActivityLogIcon size={14} />,
+          action: () => disconnectClient(client.id),
+        },
     { divider: true, label: '', action: () => {} },
     {
       label: 'Remove Client',
@@ -191,7 +197,7 @@ export const ClientsPage: React.FC = () => {
             >
               Start
             </WinButton>
-          ) : client.status === 'RUNNING' || client.status === 'BACKING_UP' ? (
+          ) : client.status === 'BACKING_UP' ? (
             <WinButton size="sm" disabled>
               Running
             </WinButton>
@@ -211,13 +217,23 @@ export const ClientsPage: React.FC = () => {
           >
             Details
           </WinButton>
-          <WinButton
-            size="sm"
-            onClick={() => disconnectClient(client.id)}
-            title="Disconnect and shut down agent"
-          >
-            Stop
-          </WinButton>
+          {(client.status === 'OFFLINE' || client.status === 'DISCONNECTED' || client.status === 'WARNING') ? (
+            <WinButton
+              size="sm"
+              onClick={() => enableClient(client.id)}
+              title="Approve and enable this disconnected client"
+            >
+              Enable
+            </WinButton>
+          ) : (
+            <WinButton
+              size="sm"
+              onClick={() => disconnectClient(client.id)}
+              title="Disconnect and shut down agent"
+            >
+              Stop
+            </WinButton>
+          )}
         </div>
       ),
     },

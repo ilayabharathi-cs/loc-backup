@@ -3,7 +3,7 @@ import os
 import shutil
 from pathlib import Path
 
-workspace_root = Path(r"d:\INTERN\loc-backup")
+workspace_root = Path(__file__).parent.resolve()
 db_paths = [
     workspace_root / "server" / "backup.db",
     workspace_root / "backup.db"

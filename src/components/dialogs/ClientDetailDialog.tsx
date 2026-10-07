@@ -23,8 +23,25 @@ export const ClientDetailDialog: React.FC<ClientDetailDialogProps> = ({
   const [activeTab, setActiveTab] = useState<string>('system');
   const [newCustomPath, setNewCustomPath] = useState<string>('');
   const [newExcludedPath, setNewExcludedPath] = useState<string>('');
+  
+  const [isEditingHostname, setIsEditingHostname] = useState(false);
+  const [editHostname, setEditHostname] = useState(client?.hostname || '');
+  
   const navigate = useNavigate();
   const { triggerBackup, updateClientPaths } = useApp();
+  
+  const handleSaveHostname = async () => {
+    if (client && editHostname.trim()) {
+      try {
+        const { clientsApi } = await import('../../api/clients');
+        await clientsApi.update(client.id, { hostname: editHostname.trim() });
+        client.hostname = editHostname.trim();
+      } catch (err) {
+        console.error("Failed to update hostname", err);
+      }
+    }
+    setIsEditingHostname(false);
+  };
 
   if (!client) return null;
 
@@ -69,7 +86,23 @@ export const ClientDetailDialog: React.FC<ClientDetailDialogProps> = ({
             <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[11px]">
               <div>
                 <span className="text-[#606060] font-medium block">Hostname:</span>
-                <span className="font-bold text-black font-mono">{client.hostname}</span>
+                {isEditingHostname ? (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <input 
+                      type="text" 
+                      value={editHostname} 
+                      onChange={(e) => setEditHostname(e.target.value)}
+                      className="win-inset bg-white px-1 text-[11px] font-mono text-black w-24"
+                    />
+                    <button onClick={handleSaveHostname} className="text-[10px] text-[#000080] hover:underline font-bold">Save</button>
+                    <button onClick={() => setIsEditingHostname(false)} className="text-[10px] text-[#aa0000] hover:underline">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-black font-mono">{client.hostname}</span>
+                    <button onClick={() => setIsEditingHostname(true)} className="text-[9px] text-[#000080] hover:underline">(Edit)</button>
+                  </div>
+                )}
               </div>
               <div>
                 <span className="text-[#606060] font-medium block">Client ID:</span>
@@ -144,16 +177,16 @@ export const ClientDetailDialog: React.FC<ClientDetailDialogProps> = ({
       icon: <ShieldCheckIcon size={14} />,
       content: (
         <div className="flex flex-col gap-2.5 max-h-80 overflow-y-auto pr-1">
-          {/* Section 1: Universal Policy Paths */}
+          {/* Section 1: Standard Policy Paths */}
           <div className="win-fieldset">
             <legend className="text-[10px] font-bold uppercase text-[#000080] bg-[#c0c0c0] px-1">
-              Universal Policy Paths (Inherited from {client.policyName})
+              Standard User Paths (Inherited from {client.policyName})
             </legend>
             <div className="flex flex-col gap-1 mt-1">
               {client.universalPaths.map((p, idx) => (
                 <div key={idx} className="win-inset bg-white px-2 py-0.5 font-mono text-[10px] text-black flex items-center justify-between">
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-[#000080] font-bold">[UNIVERSAL]</span>
+                    <span className="text-[#000080] font-bold">[STANDARD]</span>
                     <span className="truncate">{p}</span>
                   </div>
                   <span className="text-[9px] text-[#008000] font-sans font-semibold">Active</span>

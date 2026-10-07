@@ -221,11 +221,11 @@ class BackupScheduler:
             # 1. Sync policy and check for queued server jobs
             self.sync_policy_and_jobs()
 
-            # 2. Check scheduled trigger
-            now = time.time()
-            if self.next_run_time and now >= self.next_run_time:
-                self.logger.info("Schedule window reached. Triggering automatic backup...")
-                # Automatic: default to incremental if baseline exists
-                self.execute_backup("incremental", source="scheduler")
+            # 2. Check scheduled trigger (Disabled per user request)
+            # now = time.time()
+            # if self.next_run_time and now >= self.next_run_time:
+            #     self.logger.info("Schedule window reached. Triggering automatic backup...")
+            #     # Automatic: default to incremental if baseline exists
+            #     self.execute_backup("incremental", source="scheduler")
 
         self.logger.info("RetroVault Agent scheduler stopped cleanly.")

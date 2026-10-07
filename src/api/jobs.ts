@@ -15,6 +15,7 @@ export interface JobApiData {
   created_at: string;
   data_processed_mb?: number;
   progress_percent?: number;
+  source_paths?: string;
 }
 
 export const jobsApi = {

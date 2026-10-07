@@ -69,7 +69,8 @@ class HeartbeatWorker:
             self.logger.debug(f"Heartbeat acknowledged by server: {res}")
             
             # Check if server requested agent disconnect/shutdown
-            if res.get("status") == "disconnected":
+            agent_status = res.get("data", {}).get("status")
+            if agent_status == "disconnected":
                 self.logger.info("Server initiated disconnect. Shutting down agent...")
                 self.stop_event.set()
                 return False

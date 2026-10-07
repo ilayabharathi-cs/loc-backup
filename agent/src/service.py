@@ -107,29 +107,29 @@ class RetroVaultAgentCore:
         t_scheduler.start()
         self.threads.append(t_scheduler)
 
-        # 4. Start Continuous Live Folder Watcher thread (Real-time background sync)
-        def get_active_policy():
-            return scheduler.current_resolved_policy or scheduler.sync_policy_and_jobs()
-
-        live_sync = ContinuousSyncWorker(
-            config=self.config,
-            identity=self.identity,
-            api_client=self.api_client,
-            policy_provider=get_active_policy,
-            stop_event=self.stop_event,
-            scan_interval_seconds=5.0,
-            debounce_seconds=3.0
-        )
-        t_live_sync = threading.Thread(
-            target=live_sync.run_loop,
-            name="ContinuousSyncWorkerThread",
-            daemon=True
-        )
-        t_live_sync.start()
-        self.threads.append(t_live_sync)
+        # 4. Start Continuous Live Folder Watcher thread (Disabled per user request)
+        # def get_active_policy():
+        #     return scheduler.current_resolved_policy or scheduler.sync_policy_and_jobs()
+        # 
+        # live_sync = ContinuousSyncWorker(
+        #     config=self.config,
+        #     identity=self.identity,
+        #     api_client=self.api_client,
+        #     policy_provider=get_active_policy,
+        #     stop_event=self.stop_event,
+        #     scan_interval_seconds=5.0,
+        #     debounce_seconds=3.0
+        # )
+        # t_live_sync = threading.Thread(
+        #     target=live_sync.run_loop,
+        #     name="ContinuousSyncWorkerThread",
+        #     daemon=True
+        # )
+        # t_live_sync.start()
+        # self.threads.append(t_live_sync)
 
         self.logger.info("RetroVault Backup Agent is active and running in background.")
-        self.logger.info("Continuous live folder monitoring is active for automatic backup.")
+        self.logger.info("Automatic folder monitoring disabled. Waiting for manual backup trigger.")
 
         # Keep main thread alive until stopped
         try:

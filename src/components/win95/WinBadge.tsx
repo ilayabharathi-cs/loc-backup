@@ -29,6 +29,10 @@ export const WinBadge: React.FC<WinBadgeProps> = ({
         dotColor = '#aa0000';
         text = 'OFFLINE';
         break;
+      case 'DISCONNECTED':
+        dotColor = '#aa0000';
+        text = 'DISCONNECTED';
+        break;
       case 'WARNING':
         dotColor = '#ffaa00';
         text = 'WARNING';

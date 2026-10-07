@@ -53,6 +53,9 @@ export const PoliciesPage: React.FC = () => {
     clients.filter(c => c.policyId === currentPolicy.id).map(c => c.id)
   );
 
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editingClientName, setEditingClientName] = useState<string>('');
+
   // When policy selection changes, reload draft state
   const handleSelectPolicy = (p: BackupPolicy) => {
     setSelectedPolicyId(p.id);
@@ -101,6 +104,20 @@ export const PoliciesPage: React.FC = () => {
   };
 
   const handleSavePolicy = () => {
+    let finalCustomFolders = [...customFolders];
+    if (newCustomPath.trim() && !finalCustomFolders.includes(newCustomPath.trim())) {
+      finalCustomFolders.push(newCustomPath.trim());
+      setCustomFolders(finalCustomFolders);
+      setNewCustomPath('');
+    }
+
+    let finalExcludedPaths = [...excludedPaths];
+    if (newExcludedPath.trim() && !finalExcludedPaths.includes(newExcludedPath.trim())) {
+      finalExcludedPaths.push(newExcludedPath.trim());
+      setExcludedPaths(finalExcludedPaths);
+      setNewExcludedPath('');
+    }
+
     const updated: BackupPolicy = {
       ...currentPolicy,
       name,
@@ -110,8 +127,8 @@ export const PoliciesPage: React.FC = () => {
       deviceRecoveryPath: deviceRecoveryPath.trim() || 'C:\\RetroVaultRecovery',
       recoveryDeviceName: recoveryDeviceName.trim() || undefined,
       protectedFolders: folders,
-      customFolders,
-      excludedPaths,
+      customFolders: finalCustomFolders,
+      excludedPaths: finalExcludedPaths,
       backupType,
       changeDetection,
       rpoTargetSeconds: rpoTarget,
@@ -462,10 +479,10 @@ export const PoliciesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 1: Universal Protected Folders */}
+          {/* Section 1: Standard User Folders */}
           <div className="win-fieldset">
             <legend className="text-[10px] font-bold text-[#000080] bg-[#c0c0c0] px-1">
-              UNIVERSAL PROTECTED FOLDERS (AUTOMATICALLY EXPANDED FOR EACH USER PROFILE)
+              STANDARD USER FOLDERS (AUTOMATICALLY EXPANDED FOR EACH USER PROFILE)
             </legend>
             <div className="grid grid-cols-2 gap-2 mt-1">
               {folders.map((f, idx) => (
@@ -475,7 +492,7 @@ export const PoliciesPage: React.FC = () => {
                     checked={f.enabled}
                     onChange={() => handleToggleFolder(idx)}
                   />
-                  <span className="text-[9px] font-mono text-[#008000] font-bold">UNIVERSAL</span>
+                  <span className="text-[9px] font-mono text-[#008000] font-bold">STANDARD</span>
                 </div>
               ))}
             </div>
@@ -693,25 +710,60 @@ export const PoliciesPage: React.FC = () => {
           <div className="win-inset bg-white p-1 max-h-60 overflow-y-auto flex flex-col gap-0.5">
             {clients.map((c) => {
               const isChecked = targetClientIds.includes(c.id);
+              const isEditing = editingClientId === c.id;
 
               return (
                 <div
                   key={c.id}
                   className="flex items-center justify-between px-2 py-1 hover:bg-[#f0f0f0] text-[11px]"
                 >
-                  <WinCheckbox
-                    label={
+                  <div className="flex items-center gap-2">
+                    <WinCheckbox
+                      label={<span />}
+                      checked={isChecked}
+                      onChange={() => {
+                        setTargetClientIds(prev => 
+                          isChecked ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                        );
+                      }}
+                    />
+                    {isEditing ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingClientName}
+                          onChange={(e) => setEditingClientName(e.target.value)}
+                          className="win-inset bg-white px-1 py-0.5 text-[10px] font-mono text-black w-24"
+                        />
+                        <button 
+                          className="text-[#000080] font-bold hover:underline text-[9px]"
+                          onClick={async () => {
+                            if (editingClientName.trim()) {
+                              const { clientsApi } = await import('../api/clients');
+                              await clientsApi.update(c.id, { hostname: editingClientName.trim() });
+                              c.hostname = editingClientName.trim();
+                            }
+                            setEditingClientId(null);
+                          }}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    ) : (
                       <span className="font-mono text-[10px]">
-                        <b>{c.hostname}</b> ({c.id}) — {c.user}
+                        <b>{c.hostname}</b> ({c.id}) 
+                        <button 
+                          className="text-[#000080] hover:underline text-[9px] ml-1"
+                          onClick={() => {
+                            setEditingClientId(c.id);
+                            setEditingClientName(c.hostname);
+                          }}
+                        >
+                          (Edit)
+                        </button>
                       </span>
-                    }
-                    checked={isChecked}
-                    onChange={() => {
-                      setTargetClientIds(prev => 
-                        isChecked ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                      );
-                    }}
-                  />
+                    )}
+                  </div>
                   <span className="text-[9px] font-mono text-[#606060]">
                     Current: {c.policyName}
                   </span>
