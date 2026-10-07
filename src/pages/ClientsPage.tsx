@@ -271,7 +271,7 @@ export const ClientsPage: React.FC = () => {
           </WinButton>
           <WinButton
             onClick={() => {
-              addToast('Client Export', 'Exported 20 enrolled workstation profiles to D:\\Clients-Inventory.csv', 'success');
+              addToast('Client Export', `Exported ${clients.length} enrolled workstation profiles to D:\\Clients-Inventory.csv`, 'success');
             }}
           >
             Export List...

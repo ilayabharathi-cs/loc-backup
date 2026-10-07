@@ -332,7 +332,7 @@ export const JobsPage: React.FC = () => {
               </div>
               <div>
                 <span className="text-[#606060] block font-medium">Transfer Speed:</span>
-                <span className="font-mono text-black font-semibold">{inspectedJob.transferSpeedMbps || 88.4} Mbps</span>
+                <span className="font-mono text-black font-semibold">{(inspectedJob.transferSpeedMbps || 0) > 0 ? `${inspectedJob.transferSpeedMbps} Mbps` : '--'}</span>
               </div>
             </div>
 

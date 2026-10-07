@@ -22,8 +22,7 @@ if exist ".venv\Scripts\python.exe" (
 :: 2. Display Server Network IPs
 echo Detecting Server IP Addresses for Client Agents...
 powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike '*Loopback*' -and $_.IPAddress -notlike '169.254*' } | ForEach-Object { Write-Host '  [+] Local IP:' $_.IPAddress '('$_.InterfaceAlias')' -ForegroundColor Green }"
-echo.
-echo Client agents should connect to: http://192.168.46.180:8000
+powershell -NoProfile -Command "$firstIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike '*Loopback*' -and $_.IPAddress -notlike '169.254*' } | Select-Object -First 1).IPAddress; if ($firstIp) { Write-Host 'Client agents should connect to: http://'$firstIp':8000 (or http://localhost:8000 for local machine)' -ForegroundColor Cyan } else { Write-Host 'Client agents should connect to: http://localhost:8000' -ForegroundColor Cyan }"
 echo.
 
 :: 3. Launch Backend API Server (Port 8000)

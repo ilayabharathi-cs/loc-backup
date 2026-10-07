@@ -17,9 +17,6 @@ import type { BackupJob } from '../types';
 
 import { getDrReadiness, getTopology, getAlerts } from '../api/v7';
 import type { DrReadiness, TopologyStatus, AlertItem } from '../api/v7';
-import { getStorageTiers, type StorageTierResponse } from '../api/cloud';
-import { listVirtualRecoverySessions, type VirtualRecoverySessionResponse } from '../api/virtualRecovery';
-
 export const DashboardPage: React.FC = () => {
   const { clients, jobs, storage, triggerBackup, addToast } = useApp();
   const navigate = useNavigate();
@@ -27,24 +24,18 @@ export const DashboardPage: React.FC = () => {
   const [drInfo, setDrInfo] = React.useState<DrReadiness | null>(null);
   const [topoInfo, setTopoInfo] = React.useState<TopologyStatus | null>(null);
   const [activeAlerts, setActiveAlerts] = React.useState<AlertItem[]>([]);
-  const [tiers, setTiers] = React.useState<StorageTierResponse[]>([]);
-  const [ivrSessions, setIvrSessions] = React.useState<VirtualRecoverySessionResponse[]>([]);
 
   React.useEffect(() => {
     const fetchV7 = async () => {
       try {
-        const [drRes, topoRes, altRes, tiersRes, ivrRes] = await Promise.all([
+        const [drRes, topoRes, altRes] = await Promise.all([
           getDrReadiness(),
           getTopology(),
-          getAlerts('ACTIVE'),
-          getStorageTiers().catch(() => ({ success: false, data: [] })),
-          listVirtualRecoverySessions().catch(() => ({ success: false, data: [] }))
+          getAlerts('ACTIVE')
         ]);
         if (drRes.success) setDrInfo(drRes.data);
         if (topoRes.success) setTopoInfo(topoRes.data);
         if (altRes.success) setActiveAlerts(altRes.data);
-        if (tiersRes.success) setTiers(tiersRes.data || []);
-        if (ivrRes.success) setIvrSessions(ivrRes.data || []);
       } catch (e) {
         // Fallback gracefully
       }
@@ -240,62 +231,6 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* V12 CLOUD & INSTANT VIRTUAL RECOVERY STATUS */}
-      <div className="win-outset p-2 bg-[#dfdfdf] flex flex-col gap-1.5 shrink-0 text-xs">
-        <div className="flex items-center justify-between border-b border-[#808080] pb-1">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-[11px] text-[#000080]">V12 HYBRID CLOUD & INSTANT VIRTUAL RECOVERY (IVR)</span>
-            <span className="px-1.5 py-0.2 bg-[#008080] text-white font-mono text-[9px] font-bold">
-              {tiers.filter(t => t.state === 'READY').length} ACTIVE TIERS
-            </span>
-            <span className="px-1.5 py-0.2 bg-[#000080] text-white font-mono text-[9px] font-bold">
-              {ivrSessions.filter(s => s.state === 'READY' || s.state === 'HYDRATING').length} ACTIVE MOUNTS
-            </span>
-          </div>
-          <div className="flex gap-1.5">
-            <WinButton size="sm" onClick={() => navigate('/cloud-storage')}>
-              Cloud Tiers ({tiers.length})
-            </WinButton>
-            <WinButton size="sm" onClick={() => navigate('/virtual-recovery')}>
-              Virtual Recovery ({ivrSessions.length})
-            </WinButton>
-            <WinButton size="sm" onClick={() => navigate('/dr')}>
-              DR Sandbox Drills
-            </WinButton>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-2 text-[11px]">
-          <div className="win-inset p-1.5 bg-white">
-            <div className="font-bold text-gray-700">Cloud Storage Tiers</div>
-            <div className="font-mono text-[10px] mt-0.5">
-              Ready: <span className="font-bold text-green-700">{tiers.filter(t => t.state === 'READY').length}</span> | Total: <span className="font-bold">{tiers.length}</span>
-            </div>
-          </div>
-          <div className="win-inset p-1.5 bg-white">
-            <div className="font-bold text-gray-700">WORM Immutability</div>
-            <div className="font-mono text-[10px] mt-0.5">
-              Locked: <span className="font-bold text-blue-700">{tiers.filter(t => t.object_lock_enabled).length}</span> tiers active
-            </div>
-          </div>
-          <div className="win-inset p-1.5 bg-white">
-            <div className="font-bold text-gray-700">IVR Sessions</div>
-            <div className="font-mono text-[10px] mt-0.5">
-              Live: <span className="font-bold text-green-700">{ivrSessions.filter(s => s.state === 'READY' || s.state === 'HYDRATING').length}</span> | Hydrating: <span className="font-bold text-purple-700">{ivrSessions.filter(s => s.state === 'HYDRATING').length}</span>
-            </div>
-          </div>
-          <div className="win-inset p-1.5 bg-white">
-            <div className="font-bold text-gray-700">Observed TTFA</div>
-            <div className="font-mono text-[10px] mt-0.5">
-              Fastest: <span className="font-bold text-green-700">
-                {ivrSessions.find(s => s.time_to_first_access_ms)?.time_to_first_access_ms != null
-                  ? `${ivrSessions.find(s => s.time_to_first_access_ms)!.time_to_first_access_ms!.toFixed(1)}ms`
-                  : '&lt; 3.0ms'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 5 Classic Win95 Stat Panels */}
       <div className="grid grid-cols-5 gap-2 shrink-0">
@@ -348,7 +283,7 @@ export const DashboardPage: React.FC = () => {
         </WinPanel>
 
         {/* Panel 3: Storage */}
-        <WinPanel title="STORAGE (D:\BackupRepository)" className="bg-[#c0c0c0]">
+        <WinPanel title={`STORAGE (${storage.repositoryPath || 'LOCAL REPOSITORY'})`} className="bg-[#c0c0c0]">
           <div className="flex flex-col gap-1.5 py-1 px-1">
             <div className="flex items-baseline justify-between border-b border-[#808080] pb-1">
               <span className="text-[11px] font-semibold text-black">Used / Free</span>
@@ -386,38 +321,45 @@ export const DashboardPage: React.FC = () => {
           </div>
         </WinPanel>
 
-        {/* Panel 5: Latest Backup Run (Section 32) */}
+        {/* Panel 5: Latest Backup Run */}
         <WinPanel title="LATEST BACKUP RUN" className="bg-[#c0c0c0]">
-          <div className="flex flex-col gap-1 py-0.5 px-1 font-mono text-[10px]">
-            <div className="flex justify-between items-baseline border-b border-[#808080] pb-0.5">
-              <span className="font-bold text-black truncate max-w-[85px]">{recentJobs[0]?.id || 'Backup #23'}</span>
-              <span className={`px-1 text-[9px] font-bold ${recentJobs[0]?.backupType === 'Incremental' ? 'bg-[#000080] text-white' : 'bg-[#008000] text-white'}`}>
-                {recentJobs[0]?.backupType?.toUpperCase() || 'INCREMENTAL'}
-              </span>
+          {recentJobs.length > 0 ? (
+            <div className="flex flex-col gap-1 py-0.5 px-1 font-mono text-[10px]">
+              <div className="flex justify-between items-baseline border-b border-[#808080] pb-0.5">
+                <span className="font-bold text-black truncate max-w-[85px]">{recentJobs[0].id}</span>
+                <span className={`px-1 text-[9px] font-bold ${recentJobs[0].backupType === 'Incremental' ? 'bg-[#000080] text-white' : 'bg-[#008000] text-white'}`}>
+                  {recentJobs[0].backupType.toUpperCase()}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-2 text-[10px] py-0.5">
+                <div className="flex justify-between">
+                  <span className="text-[#404040]">New:</span>
+                  <span className="font-bold text-black">{recentJobs[0].filesNew ?? 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#404040]">Mod:</span>
+                  <span className="font-bold text-black">{recentJobs[0].filesModified ?? 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#404040]">Unch:</span>
+                  <span className="font-bold text-black">{recentJobs[0].filesUnchanged ?? 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#404040]">Del:</span>
+                  <span className="font-bold text-[#aa0000]">{recentJobs[0].filesDeleted ?? 0}</span>
+                </div>
+              </div>
+              <div className="flex justify-between border-t border-[#808080] pt-0.5 text-[9px]">
+                <span>Data: <b>{recentJobs[0].dataProcessedMb} MB</b></span>
+                <span className="font-bold text-[#006600]">{recentJobs[0].status}</span>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-2 text-[10px] py-0.5">
-              <div className="flex justify-between">
-                <span className="text-[#404040]">New:</span>
-                <span className="font-bold text-black">{recentJobs[0]?.filesNew ?? 4}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#404040]">Mod:</span>
-                <span className="font-bold text-black">{recentJobs[0]?.filesModified ?? 12}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#404040]">Unch:</span>
-                <span className="font-bold text-black">{recentJobs[0]?.filesUnchanged ?? 1204}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#404040]">Del:</span>
-                <span className="font-bold text-[#aa0000]">{recentJobs[0]?.filesDeleted ?? 3}</span>
-              </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-4 px-1 text-center">
+              <span className="text-[11px] text-[#606060]">No backup runs yet</span>
+              <span className="text-[9px] text-[#808080] mt-1">Run a backup from a client to view stats</span>
             </div>
-            <div className="flex justify-between border-t border-[#808080] pt-0.5 text-[9px]">
-              <span>Up: <b>{recentJobs[0]?.dataProcessedMb || 850} MB</b></span>
-              <span className="font-bold text-[#006600]">{recentJobs[0]?.status || 'COMPLETED'}</span>
-            </div>
-          </div>
+          )}
         </WinPanel>
       </div>
 

@@ -78,15 +78,15 @@ export const StoragePage: React.FC = () => {
 
   // Metrics computation with fallbacks
   const usedTb = metrics ? +(metrics.total_stored_bytes / (1024 ** 4)).toFixed(3) : storage.usedTb;
-  const totalTb = storage.totalTb || 10.0;
+  const totalTb = storage.totalTb || 1.0;
   const freeTb = Math.max(0, +(totalTb - usedTb).toFixed(3));
-  const usedPercent = Math.min(100, (usedTb / totalTb) * 100);
+  const usedPercent = totalTb > 0 ? Math.min(100, (usedTb / totalTb) * 100) : 0;
   const freePercent = Math.max(0, 100 - usedPercent);
 
-  const dedupRatio = metrics?.deduplication_ratio || storage.dedupRatio || 3.7;
-  const compRatio = metrics?.compression_ratio || storage.compressionRatio || 1.7;
+  const dedupRatio = metrics?.deduplication_ratio ?? storage.dedupRatio ?? 1.0;
+  const compRatio = metrics?.compression_ratio ?? storage.compressionRatio ?? 1.0;
   const overallRatio = metrics?.overall_efficiency_ratio || +(dedupRatio * compRatio).toFixed(1);
-  const savedMb = metrics ? (metrics.bytes_saved / (1024 * 1024)).toFixed(1) : ((storage.usedTb * (overallRatio - 1) * 1024 * 1024)).toFixed(1);
+  const savedMb = metrics ? (metrics.bytes_saved / (1024 * 1024)).toFixed(1) : ((storage.usedTb * Math.max(0, overallRatio - 1) * 1024 * 1024)).toFixed(1);
 
   return (
     <div className="flex-1 flex flex-col p-2 gap-2 overflow-y-auto bg-[#c0c0c0]">

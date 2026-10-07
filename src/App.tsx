@@ -22,6 +22,7 @@ import { RecoveryVerificationPage } from './pages/RecoveryVerificationPage';
 import { RecoveryReadinessPage } from './pages/RecoveryReadinessPage';
 import { PolicyOrchestrationPage } from './pages/PolicyOrchestrationPage';
 import { DisasterRecoveryPage } from './pages/DisasterRecoveryPage';
+import { ReplicationPage } from './pages/ReplicationPage';
 
 export const App: React.FC = () => {
   return (
@@ -36,6 +37,7 @@ export const App: React.FC = () => {
             <Route path="jobs" element={<JobsPage />} />
             <Route path="restore" element={<RestorePage />} />
             <Route path="storage" element={<StoragePage />} />
+            <Route path="replication" element={<ReplicationPage />} />
             <Route path="dr" element={<DisasterRecoveryPage />} />
             <Route path="recovery-verification" element={<RecoveryVerificationPage />} />
             <Route path="recovery-readiness" element={<RecoveryReadinessPage />} />

@@ -108,8 +108,8 @@ export const WinMenuBar: React.FC<WinMenuBarProps> = ({ onOpenAbout, onOpenRepor
       accessKey: 'C',
       items: [
         { label: 'Client Workstation List', action: () => navigate('/clients') },
-        { label: 'Push Agent Update to Clients...', action: () => addToast('Agent Deployment', 'Agent v1.4.2 broadcast queued for 20 clients.', 'info') },
-        { label: 'Heartbeat Health Ping', action: () => addToast('Network Ping', '18/20 clients responded within 20ms.', 'success') },
+        { label: 'Push Agent Update to Clients...', action: () => addToast('Agent Deployment', `Agent update broadcast queued for ${clients.length} clients.`, 'info') },
+        { label: 'Heartbeat Health Ping', action: () => addToast('Network Ping', `${clients.filter(c => c.status === 'ONLINE').length}/${clients.length} clients responded.`, 'success') },
         { divider: true, label: '' },
         { label: 'Assign Universal Policy...', action: () => navigate('/policies') }
       ]
@@ -122,16 +122,16 @@ export const WinMenuBar: React.FC<WinMenuBarProps> = ({ onOpenAbout, onOpenRepor
         { label: 'Run S.M.A.R.T. Integrity Scrub', action: () => verifyStorage() },
         { label: 'Compact & Reclaim Deduplication Space', action: () => addToast('Compaction', 'Deduplication compaction scheduled in background.', 'info') },
         { divider: true, label: '' },
-        { label: 'Retention Policy Cleanup', action: () => addToast('Retention', 'Pruned 12 expired recovery points past 7-day threshold.', 'info') }
+        { label: 'Retention Policy Cleanup', action: () => addToast('Retention', 'Retention policy evaluation triggered.', 'info') }
       ]
     },
     {
       title: 'Reports',
       accessKey: 'P',
       items: [
-        { label: 'Generate Enterprise RPO SLA Audit Report', action: () => onOpenReport ? onOpenReport() : addToast('Report Generated', 'RPO Audit exported to D:\\Audit_Report.txt', 'success') },
-        { label: 'Storage Growth Forecast (30-Day)', action: () => addToast('Report', 'Storage forecast: Projected usage +420 GB by next month.', 'info') },
-        { label: 'Client Compliance Summary', action: () => addToast('Compliance', '90% of workstations compliant with backup frequency.', 'info') }
+        { label: 'Generate Enterprise RPO SLA Audit Report', action: () => onOpenReport ? onOpenReport() : addToast('Report Generated', 'RPO Audit exported.', 'success') },
+        { label: 'Storage Growth Forecast (30-Day)', action: () => addToast('Report', 'Storage forecast calculated based on active retention.', 'info') },
+        { label: 'Client Compliance Summary', action: () => addToast('Compliance', `${clients.filter(c => c.status === 'ONLINE').length}/${clients.length} workstations compliant.`, 'info') }
       ]
     },
     {
