@@ -18,7 +18,8 @@ export const ClientsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE' | 'WARNING'>('ALL');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(clients[0]?.id || null);
-  const [detailModalClient, setDetailModalClient] = useState<Client | null>(null);
+  const [detailModalClientId, setDetailModalClientId] = useState<string | null>(null);
+  const detailModalClient = clients.find(c => c.id === detailModalClientId) || null;
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; client: Client } | null>(null);
@@ -75,7 +76,7 @@ export const ClientsPage: React.FC = () => {
     {
       label: 'Client Properties...',
       icon: <ComputerIcon size={14} />,
-      action: () => setDetailModalClient(client),
+      action: () => setDetailModalClientId(client.id),
     },
     { divider: true, label: '', action: () => {} },
     {
@@ -191,7 +192,7 @@ export const ClientsPage: React.FC = () => {
           </WinButton>
           <WinButton
             size="sm"
-            onClick={() => setDetailModalClient(client)}
+            onClick={() => setDetailModalClientId(client.id)}
             title="Inspect properties and protected paths"
           >
             Details
@@ -265,7 +266,7 @@ export const ClientsPage: React.FC = () => {
           <WinButton
             isDefault
             disabled={!selectedClient}
-            onClick={() => selectedClient && setDetailModalClient(selectedClient)}
+            onClick={() => selectedClient && setDetailModalClientId(selectedClient.id)}
           >
             Properties...
           </WinButton>
@@ -287,7 +288,7 @@ export const ClientsPage: React.FC = () => {
           keyExtractor={(c) => c.id}
           selectedId={selectedClientId}
           onSelect={(c) => setSelectedClientId(c.id)}
-          onDoubleClick={(c) => setDetailModalClient(c)}
+          onDoubleClick={(c) => setDetailModalClientId(c.id)}
           onContextMenu={handleRowContextMenu}
           className="flex-1"
         />
@@ -319,7 +320,7 @@ export const ClientsPage: React.FC = () => {
       <ClientDetailDialog
         client={detailModalClient}
         isOpen={Boolean(detailModalClient)}
-        onClose={() => setDetailModalClient(null)}
+        onClose={() => setDetailModalClientId(null)}
       />
     </div>
   );

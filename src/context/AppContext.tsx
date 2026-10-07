@@ -165,7 +165,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
 
-      // 4. Fetch Jobs
+      // 2. Fetch Policies
+      const policiesRes = await policiesApi.list();
+      let mappedPolicies: BackupPolicy[] = [];
+      if (policiesRes.success && Array.isArray(policiesRes.data) && policiesRes.data.length > 0) {
+        mappedPolicies = policiesRes.data.map((p: PolicyApiData) => {
+          const allUniversal = [
+            '%USERPROFILE%\\Documents',
+            '%USERPROFILE%\\Desktop',
+            '%USERPROFILE%\\Downloads',
+            '%USERPROFILE%\\Pictures'
+          ];
+          const dbUniversalPaths = (p.paths || [])
+            .filter((path: any) => !path.is_excluded && path.path_type === 'universal')
+            .map((path: any) => path.path_value);
+            
+          const mappedProtected = allUniversal.map(up => ({
+            path: up,
+            isUniversal: true,
+            enabled: dbUniversalPaths.length === 0 || dbUniversalPaths.includes(up)
+          }));
+
+          return {
+            id: `POL-${p.id.toString().padStart(3, '0')}`,
+            name: p.name,
+            description: p.description || '',
+            protectedFolders: mappedProtected,
+            customFolders: (p.paths || []).filter((path: any) => path.path_type === 'custom' && !path.is_excluded).map((path: any) => path.path_value),
+            excludedPaths: (p.paths || []).filter((path: any) => path.is_excluded).map((path: any) => path.path_value),
+            backupType: p.backup_type === 'full' ? 'Full' : 'Incremental',
+            changeDetection: p.change_detection === 'usn_journal' ? 'USN Journal' : 'File Watcher',
+            rpoTargetSeconds: p.rpo_target_seconds,
+            compressionEnabled: p.compression_enabled,
+            encryptionEnabled: p.encryption_enabled,
+            cpuLimitPercent: p.cpu_limit_percent,
+            networkLimitMbps: p.network_limit_mbps,
+            retentionDays: p.retention_days,
+            targetRepository: p.target_repository || 'repository',
+            pointOfRecovery: (p.point_of_recovery === 'device' ? 'device' : 'server'),
+            deviceRecoveryPath: p.device_recovery_path || 'C:\\RetroVaultRecovery',
+            recoveryDeviceName: p.recovery_device_name || ''
+          };
+        });
+        setPolicies(mappedPolicies);
+      }
+
+      // 3. Fetch Jobs
       const jobsRes = await jobsApi.list();
       let mappedJobs: BackupJob[] = [];
       if (jobsRes.success && Array.isArray(jobsRes.data)) {
@@ -188,7 +233,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setJobs(mappedJobs);
       }
 
-      // 2. Fetch Clients (Real Enrolled Devices)
+      // 4. Fetch Clients (Real Enrolled Devices)
       const clientsRes = await clientsApi.list();
       if (clientsRes.success && Array.isArray(clientsRes.data)) {
         const mappedClients: Client[] = clientsRes.data.map((c: ClientApiData) => {
@@ -197,6 +242,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const cidStr = `PC-${c.client_id}`;
           const clientJobs = mappedJobs.filter((j: BackupJob) => j.clientId === cidStr || j.clientId === c.client_id);
           const lastSuccess = clientJobs.filter((j: BackupJob) => j.status === 'SUCCESS').sort((a: BackupJob, b: BackupJob) => new Date(b.completed || '').getTime() - new Date(a.completed || '').getTime())[0];
+
+          // Determine assigned policy
+          let assignedPolicy: BackupPolicy | undefined;
+          if (c.policy_override_id) {
+            const polKey = `POL-${c.policy_override_id.toString().padStart(3, '0')}`;
+            assignedPolicy = mappedPolicies.find(p => p.id === polKey || p.id === String(c.policy_override_id));
+          }
+          if (!assignedPolicy && mappedPolicies.length > 0) {
+            assignedPolicy = mappedPolicies[0];
+          }
+
+          const policyUniversal = assignedPolicy
+            ? assignedPolicy.protectedFolders.filter(f => f.isUniversal && f.enabled).map(f => f.path)
+            : ['%USERPROFILE%\\Documents', '%USERPROFILE%\\Desktop', '%USERPROFILE%\\Downloads', '%USERPROFILE%\\Pictures'];
+
+          const policyCustom = assignedPolicy ? assignedPolicy.customFolders : [];
+          const policyExcluded = (assignedPolicy && assignedPolicy.excludedPaths.length > 0)
+            ? assignedPolicy.excludedPaths
+            : ['%TEMP%', '*.tmp'];
 
           return {
             id: c.client_id,
@@ -212,58 +276,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             lastBackup: lastSuccess ? (lastSuccess.completed || 'Recently') : 'Never',
             rpoSeconds: 60,
             storageConsumedGb: 0.0,
-            policyId: 'POL-001',
-            policyName: 'Windows User Data',
-            universalPaths: [],
-            customPaths: [],
-            excludedPaths: ['%TEMP%', '*.tmp']
+            policyId: assignedPolicy ? assignedPolicy.id : 'POL-001',
+            policyName: assignedPolicy ? assignedPolicy.name : 'Windows User Data',
+            universalPaths: policyUniversal,
+            customPaths: policyCustom,
+            excludedPaths: policyExcluded
           };
         });
         setClients(mappedClients);
-      }
-
-      // 3. Fetch Policies
-      const policiesRes = await policiesApi.list();
-      if (policiesRes.success && Array.isArray(policiesRes.data) && policiesRes.data.length > 0) {
-        const mappedPolicies: BackupPolicy[] = policiesRes.data.map((p: PolicyApiData) => {
-          const allUniversal = [
-            '%USERPROFILE%\\Documents',
-            '%USERPROFILE%\\Desktop',
-            '%USERPROFILE%\\Downloads',
-            '%USERPROFILE%\\Pictures'
-          ];
-          const dbUniversalPaths = p.paths
-            .filter((path: any) => !path.is_excluded && path.path_type === 'universal')
-            .map((path: any) => path.path_value);
-            
-          const mappedProtected = allUniversal.map(up => ({
-            path: up,
-            isUniversal: true,
-            enabled: dbUniversalPaths.includes(up)
-          }));
-
-          return {
-            id: `POL-${p.id.toString().padStart(3, '0')}`,
-            name: p.name,
-            description: p.description || '',
-            protectedFolders: mappedProtected,
-            customFolders: p.paths.filter((path: any) => path.path_type === 'custom' && !path.is_excluded).map((path: any) => path.path_value),
-            excludedPaths: p.paths.filter((path: any) => path.is_excluded).map((path: any) => path.path_value),
-            backupType: p.backup_type === 'full' ? 'Full' : 'Incremental',
-            changeDetection: p.change_detection === 'usn_journal' ? 'USN Journal' : 'File Watcher',
-            rpoTargetSeconds: p.rpo_target_seconds,
-            compressionEnabled: p.compression_enabled,
-            encryptionEnabled: p.encryption_enabled,
-            cpuLimitPercent: p.cpu_limit_percent,
-            networkLimitMbps: p.network_limit_mbps,
-            retentionDays: p.retention_days,
-            targetRepository: p.target_repository || 'repository',
-            pointOfRecovery: (p.point_of_recovery === 'device' ? 'device' : 'server'),
-            deviceRecoveryPath: p.device_recovery_path || 'C:\\RetroVaultRecovery',
-            recoveryDeviceName: p.recovery_device_name || ''
-          };
-        });
-        setPolicies(mappedPolicies);
       }
 
       // 5. Fetch Storage
@@ -325,14 +345,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addToast('Backup Initiating', `Contacting control plane daemon for ${clientId}...`, 'info');
 
     try {
-      const res = await jobsApi.create({ client_id: clientId });
+      const res = await clientsApi.triggerBackup(clientId);
       if (res.success && res.data) {
-        addToast('Backup Queued', `Job ${res.data.job_id} assigned in control plane.`, 'success');
+        addToast('Backup Queued', `Job ${res.data.job_id || 'scheduled'} queued in control plane. Agent polling will execute.`, 'success');
+        setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: 'BACKING_UP' } : c));
         await refreshBackendData();
         return;
       }
-    } catch {
-      // Fallback local simulation if backend offline
+    } catch (err) {
+      console.warn("Server triggerBackup failed, trying fallback:", err);
+      try {
+        const res = await jobsApi.create({ client_id: clientId });
+        if (res.success && res.data) {
+          addToast('Backup Queued', `Job ${res.data.job_id} assigned in control plane.`, 'success');
+          await refreshBackendData();
+          return;
+        }
+      } catch {
+        // Fallback local simulation if backend offline
+      }
     }
 
     // Local simulation fallback
@@ -447,19 +478,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addToast('Policy Saved', `Backup policy "${updated.name}" updated in database`, 'success');
   };
 
-  const applyPolicyToClients = (policyId: string, clientIds: string[]) => {
+  const applyPolicyToClients = async (policyId: string, clientIds: string[]) => {
     playWin95Sound('click');
     const policy = policies.find(p => p.id === policyId);
     if (!policy) return;
+
+    const numPolicyId = parseInt(policy.id.replace(/\D/g, ''), 10) || 1;
+
+    // Persist to backend database for each selected client
+    for (const cid of clientIds) {
+      try {
+        await clientsApi.update(cid, { policy_override_id: numPolicyId });
+      } catch (err) {
+        console.warn(`Failed to save policy override for client ${cid}:`, err);
+      }
+    }
 
     setClients(prev => prev.map(c => clientIds.includes(c.id) ? {
       ...c,
       policyId: policy.id,
       policyName: policy.name,
-      universalPaths: policy.protectedFolders.filter(f => f.isUniversal && f.enabled).map(f => f.path)
+      universalPaths: policy.protectedFolders.filter(f => f.isUniversal && f.enabled).map(f => f.path),
+      customPaths: policy.customFolders || [],
+      excludedPaths: policy.excludedPaths || []
     } : c));
 
     addToast('Policy Applied', `Applied "${policy.name}" to ${clientIds.length} client(s)`, 'success');
+    await refreshBackendData();
   };
 
   const updateClientPaths = (clientId: string, customPaths: string[], excludedPaths: string[]) => {

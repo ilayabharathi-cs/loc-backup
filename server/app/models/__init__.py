@@ -32,14 +32,6 @@ from app.models.security_v8_models import (
     DeletionGuard,
     SecuritySimulation
 )
-from app.models.cluster_v9_models import (
-    ClusterNode,
-    ClusterLease,
-    DistributedJob,
-    DistributedLock,
-    ClusterEvent,
-    BulkOperation
-)
 from app.models.observability_v10_models import (
     MetricSample,
     HealthCheck,
@@ -65,15 +57,6 @@ from app.models.workload_v11_models import (
     PolicyApproval,
     RemediationAction,
     DependencyRelation
-)
-from app.models.storage_tier_v12_models import (
-    CloudCredential,
-    StorageTier,
-    CloudOffloadedObject
-)
-from app.models.virtual_recovery_v12_models import (
-    VirtualRecoverySession,
-    VirtualRecoveryHydrationItem
 )
 
 __all__ = [
@@ -120,12 +103,6 @@ __all__ = [
     "IntegrityScan",
     "DeletionGuard",
     "SecuritySimulation",
-    "ClusterNode",
-    "ClusterLease",
-    "DistributedJob",
-    "DistributedLock",
-    "ClusterEvent",
-    "BulkOperation",
     "MetricSample",
     "HealthCheck",
     "OperationalAlert",
@@ -147,12 +124,7 @@ __all__ = [
     "PolicyLifecycle",
     "PolicyApproval",
     "RemediationAction",
-    "DependencyRelation",
-    "CloudCredential",
-    "StorageTier",
-    "CloudOffloadedObject",
-    "VirtualRecoverySession",
-    "VirtualRecoveryHydrationItem"
+    "DependencyRelation"
 ]
 
 

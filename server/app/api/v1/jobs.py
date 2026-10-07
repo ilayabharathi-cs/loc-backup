@@ -70,8 +70,8 @@ def list_jobs(
             id=j.id,
             job_id=j.job_id,
             client_id=j.client_id,
-            client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
-            client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+            client_identifier=j.client.client_id if j.client else str(j.client_id),
+            client_hostname=j.client.hostname if j.client else f"Client-{j.client_id}",
             policy_id=j.policy_id,
             policy_name=j.policy.name if j.policy else "Default Policy",
             status=j.status,
@@ -113,8 +113,8 @@ def get_job(
         id=j.id,
         job_id=j.job_id,
         client_id=j.client_id,
-        client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
-        client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+        client_identifier=j.client.client_id if j.client else str(j.client_id),
+        client_hostname=j.client.hostname if j.client else f"Client-{j.client_id}",
         policy_id=j.policy_id,
         policy_name=j.policy.name if j.policy else "Default Policy",
         status=j.status,
@@ -240,8 +240,8 @@ def cancel_job(
         id=j.id,
         job_id=j.job_id,
         client_id=j.client_id,
-        client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
-        client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+        client_identifier=j.client.client_id if j.client else str(j.client_id),
+        client_hostname=j.client.hostname if j.client else f"Client-{j.client_id}",
         policy_id=j.policy_id,
         policy_name=j.policy.name if j.policy else "Default Policy",
         status=j.status,
@@ -280,8 +280,8 @@ def pause_job(
         id=j.id,
         job_id=j.job_id,
         client_id=j.client_id,
-        client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
-        client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+        client_identifier=j.client.client_id if j.client else str(j.client_id),
+        client_hostname=j.client.hostname if j.client else f"Client-{j.client_id}",
         policy_id=j.policy_id,
         policy_name=j.policy.name if j.policy else "Default Policy",
         status=j.status,
@@ -311,8 +311,8 @@ def retry_job(
         backup_type="incremental",
         started_at=now,
         status="running",
-        files_processed=10,
-        bytes_processed=50 * 1024 * 1024
+        files_processed=0,
+        bytes_processed=0
     )
     db.add(run)
     db.commit()
@@ -332,14 +332,14 @@ def retry_job(
         id=j.id,
         job_id=j.job_id,
         client_id=j.client_id,
-        client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
-        client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+        client_identifier=j.client.client_id if j.client else str(j.client_id),
+        client_hostname=j.client.hostname if j.client else f"Client-{j.client_id}",
         policy_id=j.policy_id,
         policy_name=j.policy.name if j.policy else "Default Policy",
         status=j.status,
         started_at=j.started_at,
         created_at=j.created_at,
-        data_processed_mb=50.0,
-        progress_percent=15
+        data_processed_mb=0.0,
+        progress_percent=0
     )
     return ApiResponse(success=True, data=res, message="Job retry initiated")

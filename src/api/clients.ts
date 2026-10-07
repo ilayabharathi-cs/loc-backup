@@ -10,6 +10,7 @@ export interface ClientApiData {
   ip_address: string;
   agent_version: string;
   status: string;
+  policy_override_id?: number | null;
   last_seen?: string;
   created_at: string;
   updated_at: string;

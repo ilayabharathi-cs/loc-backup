@@ -29,6 +29,8 @@ from app.models.backup_file import BackupFile
 from app.models.recovery_point import RecoveryPoint
 from app.models.storage_object import StorageObject
 from app.models.restore_job import RestoreJob
+from app.models.restore_item import RestoreItem
+from app.models.audit_log import AuditLog
 from app.services.repository.local import LocalFilesystemRepository
 from app.services.restore.path_validator import PathValidator, PathSafetyError
 from app.services.restore.executor import RestoreExecutor
@@ -105,7 +107,15 @@ def test_cross_platform_server_suite():
 
         repo = LocalFilesystemRepository(root_path=repo_dir)
         db = SessionLocal()
-        db.query(StorageObject).update({"state": "AVAILABLE", "integrity_status": "HEALTHY"})
+        db.query(AuditLog).update({"client_id": None})
+        db.query(RestoreItem).delete()
+        db.query(RestoreJob).delete()
+        db.query(BackupFile).delete()
+        db.query(RecoveryPoint).delete()
+        db.query(BackupRun).delete()
+        db.query(BackupJob).delete()
+        db.query(Client).delete()
+        db.query(StorageObject).delete()
         db.commit()
 
         try:
@@ -306,8 +316,35 @@ def test_cross_platform_server_suite():
             print(f"[OK] 100% SHA-256 byte-level verification passed on {env_name}.")
 
         finally:
+            try:
+                db.query(RestoreItem).delete()
+                db.query(RestoreJob).delete()
+                db.query(BackupFile).delete()
+                db.query(RecoveryPoint).delete()
+                db.query(BackupRun).delete()
+                db.query(BackupJob).delete()
+                db.query(StorageObject).delete()
+                db.query(Client).filter(Client.id == c.id).delete()
+                db.commit()
+            except Exception:
+                pass
             db.close()
             shutil.rmtree(work_dir, ignore_errors=True)
+
+    try:
+        with SessionLocal() as db_clean:
+            db_clean.query(AuditLog).update({"client_id": None})
+            db_clean.query(RestoreItem).delete()
+            db_clean.query(RestoreJob).delete()
+            db_clean.query(BackupFile).delete()
+            db_clean.query(RecoveryPoint).delete()
+            db_clean.query(BackupRun).delete()
+            db_clean.query(BackupJob).delete()
+            db_clean.query(StorageObject).delete()
+            db_clean.query(Client).delete()
+            db_clean.commit()
+    except Exception:
+        pass
 
     print("\n" + "=" * 75)
     print("ALL CROSS-PLATFORM SERVER TESTS PASSED WITH 100% SUCCESS!")

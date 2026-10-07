@@ -53,7 +53,7 @@ from agent.src.config import AgentConfig
 from agent.src.identity import DeviceIdentity
 from agent.src.api_client import BackendApiClient
 from agent.src.policy_resolver import ResolvedPolicy
-from agent.src.platform import get_platform_adapter, set_platform_adapter, WindowsPlatformAdapter, LinuxPlatformAdapter
+from agent.src.platform_adapter import get_platform_adapter, set_platform_adapter, WindowsPlatformAdapter, LinuxPlatformAdapter
 from agent.src.backup.backup_engine import BackupEngine
 from agent.src.backup.scanner import FileScanner
 from agent.src.backup.hashing import calculate_file_sha256
@@ -118,6 +118,34 @@ def admin_token(api_test_client):
     login_res = api_test_client.post("/api/v1/auth/login", json={"username": "admin", "password": "AdminPass123!"})
     assert login_res.status_code == 200
     return login_res.json()["data"]["access_token"]
+
+
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_suite_test_clients():
+    yield
+    # Clean up test clients and jobs created during this suite so the production DB stays 100% clean
+    try:
+        with SessionLocal() as db:
+            from app.models.audit_log import AuditLog
+            from app.models.restore_job import RestoreJob
+            from app.models.backup_job import BackupJob
+            from app.models.backup_run import BackupRun
+            from app.models.backup_file import BackupFile
+            from app.models.recovery_point import RecoveryPoint
+            from app.models.upload_session import UploadSession
+            from app.models.upload_chunk import UploadChunk
+            db.query(AuditLog).update({"client_id": None})
+            db.query(RestoreJob).delete()
+            db.query(UploadChunk).delete()
+            db.query(UploadSession).delete()
+            db.query(BackupFile).delete()
+            db.query(RecoveryPoint).delete()
+            db.query(BackupRun).delete()
+            db.query(BackupJob).delete()
+            db.query(Client).delete()
+            db.commit()
+    except Exception:
+        pass
 
 
 def create_test_dataset(root_dir: str) -> Dict[str, bytes]:
@@ -440,6 +468,29 @@ def run_single_matrix_scenario(
             "upload_throughput_mb_s": round(throughput_mb_s, 2),
             "chunk_size_bytes": agent_config.chunk_size
         }
+
+        # Teardown: Clean up test client and all its runs/jobs from the database
+        if assigned_client_id:
+            try:
+                with SessionLocal() as db_session:
+                    c_del = db_session.query(Client).filter(Client.client_id == assigned_client_id).first()
+                    if c_del:
+                        from app.models.backup_file import BackupFile
+                        from app.models.upload_session import UploadSession, UploadChunk
+                        db_session.query(BackupFile).filter(BackupFile.backup_run_id.in_(
+                            db_session.query(BackupRun.id).filter(BackupRun.client_id == c_del.id)
+                        )).delete(synchronize_session=False)
+                        db_session.query(UploadChunk).filter(UploadChunk.session_id.in_(
+                            db_session.query(UploadSession.session_id).filter(UploadSession.client_id == c_del.id)
+                        )).delete(synchronize_session=False)
+                        db_session.query(UploadSession).filter(UploadSession.client_id == c_del.id).delete(synchronize_session=False)
+                        db_session.query(RecoveryPoint).filter(RecoveryPoint.client_id == c_del.id).delete(synchronize_session=False)
+                        db_session.query(BackupRun).filter(BackupRun.client_id == c_del.id).delete(synchronize_session=False)
+                        db_session.query(BackupJob).filter(BackupJob.client_id == c_del.id).delete(synchronize_session=False)
+                        db_session.delete(c_del)
+                        db_session.commit()
+            except Exception:
+                pass
 
         # Reset platform adapter
         set_platform_adapter(None)

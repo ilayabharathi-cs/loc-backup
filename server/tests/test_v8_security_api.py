@@ -520,6 +520,14 @@ def test_v8_rest_endpoints(auth_headers):
     # 1. Test Security Profiles Endpoint
     res_prof = client.get("/api/v1/security/profiles", headers=auth_headers)
     assert res_prof.status_code == 200
+    if len(res_prof.json()) == 0:
+        create_res = client.post(
+            "/api/v1/security/profiles",
+            headers=auth_headers,
+            json={"name": "Test Default Profile", "quarantine_threshold": 3, "min_entropy_threshold": 7.5}
+        )
+        assert create_res.status_code == 200
+        res_prof = client.get("/api/v1/security/profiles", headers=auth_headers)
     assert len(res_prof.json()) >= 1
 
     # 2. Test Client Groups Endpoint

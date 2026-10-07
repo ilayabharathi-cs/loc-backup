@@ -269,7 +269,7 @@ class RestorePlanner:
 
         return {
             "recovery_point_id": rp.id,
-            "source_client_id": rp.client.client_id if rp.client else f"PC-{rp.client_id:03d}",
+            "source_client_id": rp.client.client_id if rp.client else str(rp.client_id),
             "destination_root": destination_root,
             "restore_mode": restore_mode,
             "conflict_mode": conflict_mode,

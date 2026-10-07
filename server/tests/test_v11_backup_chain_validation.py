@@ -20,24 +20,30 @@ def test_backup_chain_validation_states():
     try:
         validator = BackupChainValidator(db)
 
-        # 1. Fetch or create a valid chain
-        stmt = select(BackupChain).order_by(BackupChain.id.desc())
-        chain = db.execute(stmt).scalars().first()
-        if not chain:
-            # Create a mock chain
-            rp_stmt = select(RecoveryPoint).order_by(RecoveryPoint.id.desc())
-            rp = db.execute(rp_stmt).scalars().first()
-            rp_id = str(rp.id) if rp else "1"
-            chain = BackupChain(
-                chain_id=f"chain-test-{uuid.uuid4().hex[:6]}",
-                workload_id="test-workload-val",
-                base_recovery_point_id=rp_id,
-                latest_recovery_point_id=rp_id,
-                chain_length=1,
-                status="VALID"
-            )
-            db.add(chain)
-            db.commit()
+        # 1. Create a dedicated valid chain and recovery point
+        rp = RecoveryPoint(
+            client_id=1,
+            backup_run_id=1,
+            backup_type="full",
+            status="valid",
+            timestamp=datetime.datetime.now(datetime.timezone.utc),
+            files_count=1,
+            total_size_bytes=100
+        )
+        db.add(rp)
+        db.commit()
+        db.refresh(rp)
+
+        chain = BackupChain(
+            chain_id=f"chain-valid-{uuid.uuid4().hex[:6]}",
+            workload_id=f"workload-valid-{uuid.uuid4().hex[:6]}",
+            base_recovery_point_id=str(rp.id),
+            latest_recovery_point_id=str(rp.id),
+            chain_length=1,
+            status="VALID"
+        )
+        db.add(chain)
+        db.commit()
 
         # Validate healthy chain
         val_res = validator.validate_chain(chain.chain_id)
@@ -65,4 +71,9 @@ def test_backup_chain_validation_states():
         assert missing_res["status"] == "UNKNOWN"
 
     finally:
+        try:
+            db.query(BackupChain).filter(BackupChain.workload_id.in_(["test-workload-val", "test-workload-broken"])).delete()
+            db.commit()
+        except Exception:
+            pass
         db.close()

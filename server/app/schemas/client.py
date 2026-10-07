@@ -21,6 +21,7 @@ class ClientUpdate(BaseModel):
     ip_address: Optional[str] = None
     agent_version: Optional[str] = None
     status: Optional[str] = None
+    policy_override_id: Optional[int] = None
 
 class ClientResponse(ClientBase):
     model_config = ConfigDict(from_attributes=True)
@@ -29,6 +30,7 @@ class ClientResponse(ClientBase):
     client_id: str
     device_id: str
     status: str
+    policy_override_id: Optional[int] = None
     last_seen: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime

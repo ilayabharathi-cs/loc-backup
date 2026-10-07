@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.models.observability_v10_models import HealthCheck
 from app.models.storage_repository import StorageRepository
-from app.models.cluster_v9_models import ClusterNode, DistributedJob
 from app.models.client import Client
 from app.models.backup_run import BackupRun
 from app.models.restore_job import RestoreJob
@@ -152,88 +151,30 @@ class HealthCheckService:
 
     def _check_cluster(self, check_type: str) -> Dict[str, Any]:
         t0 = time.perf_counter()
-        nodes = list(self.db.scalars(select(ClusterNode)).all())
         lat = (time.perf_counter() - t0) * 1000.0
-
-        if not nodes:
-            return {
-                "component": "cluster",
-                "check_type": check_type,
-                "status": "HEALTHY",
-                "latency_ms": round(lat, 2),
-                "last_success": datetime.now(timezone.utc),
-                "last_failure": None,
-                "reason": "Single-node standalone deployment operational",
-                "details": {"active_nodes": 0}
-            }
-
-        offline_count = sum(1 for n in nodes if n.status == "OFFLINE")
-        degraded_count = sum(1 for n in nodes if n.status == "DEGRADED")
-        if offline_count > 0 and offline_count >= len(nodes) / 2:
-            status = "CRITICAL"
-            reason = f"{offline_count}/{len(nodes)} cluster nodes are offline"
-        elif offline_count > 0 or degraded_count > 0:
-            status = "WARNING"
-            reason = f"{offline_count} offline, {degraded_count} degraded cluster nodes"
-        else:
-            status = "HEALTHY"
-            reason = f"All {len(nodes)} cluster nodes healthy"
-
         return {
             "component": "cluster",
             "check_type": check_type,
-            "status": status,
+            "status": "HEALTHY",
             "latency_ms": round(lat, 2),
-            "last_success": datetime.now(timezone.utc) if status == "HEALTHY" else None,
-            "last_failure": datetime.now(timezone.utc) if status != "HEALTHY" else None,
-            "reason": reason,
-            "details": {"total_nodes": len(nodes), "offline": offline_count, "degraded": degraded_count}
+            "last_success": datetime.now(timezone.utc),
+            "last_failure": None,
+            "reason": "Single-node standalone deployment operational",
+            "details": {"mode": "standalone"}
         }
 
     def _check_leader(self, check_type: str) -> Dict[str, Any]:
         t0 = time.perf_counter()
-        from app.models.cluster_v9_models import ClusterLease
-        lease = self.db.scalar(select(ClusterLease).where(ClusterLease.lease_key == "cluster_leader"))
         lat = (time.perf_counter() - t0) * 1000.0
-
-        now = datetime.now(timezone.utc)
-        if not lease:
-            return {
-                "component": "leader",
-                "check_type": check_type,
-                "status": "HEALTHY",
-                "latency_ms": round(lat, 2),
-                "last_success": now,
-                "last_failure": None,
-                "reason": "Cluster leader election initialized or standalone",
-                "details": {"active_leader": "standalone"}
-            }
-
-        expires = lease.lease_expires_at
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)
-
-        if expires < now:
-            return {
-                "component": "leader",
-                "check_type": check_type,
-                "status": "WARNING",
-                "latency_ms": round(lat, 2),
-                "last_success": None,
-                "last_failure": now,
-                "reason": f"Leader lease expired for node {lease.owner_node_id}",
-                "details": {"owner": lease.owner_node_id, "expired_at": expires.isoformat()}
-            }
-
         return {
             "component": "leader",
             "check_type": check_type,
             "status": "HEALTHY",
             "latency_ms": round(lat, 2),
-            "last_success": now,
+            "last_success": datetime.now(timezone.utc),
             "last_failure": None,
-            "reason": f"Active leader elected: {lease.owner_node_id}",
-            "details": {"leader_node_id": lease.owner_node_id}
+            "reason": "Standalone server active",
+            "details": {"mode": "standalone"}
         }
 
     def _check_workers(self, check_type: str) -> Dict[str, Any]:
@@ -252,8 +193,9 @@ class HealthCheckService:
 
     def _check_scheduler(self, check_type: str) -> Dict[str, Any]:
         t0 = time.perf_counter()
+        from app.models.backup_job import BackupJob
         backlog = self.db.scalar(
-            select(func.count(DistributedJob.id)).where(DistributedJob.status == "PENDING")
+            select(func.count(BackupJob.id)).where(BackupJob.status == "PENDING")
         ) or 0
         lat = (time.perf_counter() - t0) * 1000.0
 

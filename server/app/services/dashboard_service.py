@@ -20,26 +20,51 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
     failed_backups = db.query(BackupRun).filter(BackupRun.status == "failed").count()
     running_backups = db.query(BackupRun).filter(BackupRun.status == "running").count()
 
-    # Storage metrics from repositories
+    # Storage metrics from repositories or actual filesystem
     storage = db.query(StorageRepository).first()
-    if storage:
-        storage_total = round(storage.total_bytes / (1024 ** 4), 1)  # TB
-        storage_used = round(storage.used_bytes / (1024 ** 4), 1)
-        storage_available = round(storage.available_bytes / (1024 ** 4), 1)
+    tb_factor = 1024 ** 4
+    if storage and storage.total_bytes:
+        storage_total = round(storage.total_bytes / tb_factor, 1)
+        storage_used = round(storage.used_bytes / tb_factor, 1)
+        storage_available = round(storage.available_bytes / tb_factor, 1)
     else:
-        storage_total = 10.0
-        storage_used = 2.4
-        storage_available = 7.6
+        try:
+            from app.services.repository.local import get_repository
+            health = get_repository().validate_storage_health()
+            if health.get("total_bytes"):
+                storage_total = round(health["total_bytes"] / tb_factor, 1)
+                storage_used = round(health["used_bytes"] / tb_factor, 1)
+                storage_available = round(health["free_bytes"] / tb_factor, 1)
+            else:
+                storage_total = 0.0
+                storage_used = 0.0
+                storage_available = 0.0
+        except Exception:
+            storage_total = 0.0
+            storage_used = 0.0
+            storage_available = 0.0
 
     # Failed jobs in last 24h
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    cutoff = now_utc - datetime.timedelta(hours=24)
     failed_jobs_last_24h = db.query(BackupJob).filter(
         BackupJob.status == "failed",
         BackupJob.created_at >= cutoff
     ).count()
 
-    # Average RPO estimation (from active policies or client last backups)
-    average_rpo_seconds = 48
+    # Real Average RPO estimation (from most recent valid recovery points)
+    from app.models.recovery_point import RecoveryPoint
+    recent_rps = db.query(RecoveryPoint).filter(
+        RecoveryPoint.status.in_(["valid", "completed"])
+    ).order_by(RecoveryPoint.created_at.desc()).limit(10).all()
+    if recent_rps:
+        diffs = [
+            (now_utc - (rp.created_at if (rp.created_at and rp.created_at.tzinfo) else (rp.created_at.replace(tzinfo=datetime.timezone.utc) if rp.created_at else now_utc))).total_seconds()
+            for rp in recent_rps
+        ]
+        average_rpo_seconds = max(0, int(sum(diffs) / len(diffs)))
+    else:
+        average_rpo_seconds = 0
 
     # Recent jobs (limit 7)
     recent_jobs_db = db.query(BackupJob).order_by(BackupJob.created_at.desc()).limit(7).all()
@@ -66,8 +91,8 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
             id=j.id,
             job_id=j.job_id,
             client_id=j.client_id,
-            client_identifier=j.client.client_id if j.client else f"PC-{j.client_id:03d}",
-            client_hostname=j.client.hostname if j.client else f"CLIENT-{j.client_id}",
+            client_identifier=j.client.client_id if j.client else str(j.client_id),
+            client_hostname=j.client.hostname if j.client else f"Client-{j.client_id}",
             policy_id=j.policy_id,
             policy_name=j.policy.name if j.policy else "Default Policy",
             status=j.status,

@@ -114,7 +114,7 @@ def update_client(
     client_id: str,
     request: ClientUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "operator"]))
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     client = find_client(db, client_id)
     update_data = request.model_dump(exclude_unset=True)
@@ -129,7 +129,7 @@ def update_client(
         action="CLIENT_UPDATED",
         resource_type="client",
         resource_id=client.client_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         client_id=client.id,
         details=f"Updated client attributes: {list(update_data.keys())}"
     )
@@ -144,7 +144,7 @@ def update_client(
 def delete_client(
     client_id: str,
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user)
+    current_user: User = Depends(require_role(["admin"]))
 ):
     client = find_client(db, client_id)
     cid = client.client_id
@@ -266,8 +266,12 @@ def trigger_client_backup(
     eff_policy_id = policy_id
     if not eff_policy_id and request_data:
         eff_policy_id = request_data.get("policy_id")
+    if not eff_policy_id and client.policy_override_id:
+        eff_policy_id = client.policy_override_id
     if not eff_policy_id:
         active_policy = db.query(BackupPolicy).filter(BackupPolicy.is_active == True).first()
+        if not active_policy:
+            active_policy = db.query(BackupPolicy).first()
         eff_policy_id = active_policy.id if active_policy else None
 
     # Resolve backup_type

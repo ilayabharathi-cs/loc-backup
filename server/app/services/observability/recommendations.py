@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.models.storage_repository import StorageRepository
 from app.models.client import Client
 from app.models.replication import ReplicationJob
-from app.models.cluster_v9_models import ClusterNode
 from app.services.observability.rpo_monitor import BackupObjectiveMonitor
 
 logger = logging.getLogger(__name__)
@@ -118,24 +117,6 @@ class RecommendationEngine:
                     "mismatched_client_ids": mismatched_clients
                 },
                 "recommended_action": f"Schedule remote agent MSI upgrade rollout to align fleet with version {dominant_ver}.",
-                "generated_at": now.isoformat(),
-                "is_automated_execution_allowed": False
-            })
-
-        # 5. Cluster nodes degraded/offline rule
-        cluster_nodes = list(self.db.scalars(select(ClusterNode)).all())
-        offline_nodes = [n.node_id for n in cluster_nodes if n.status == "OFFLINE"]
-        if offline_nodes:
-            recommendations.append({
-                "id": "REC-CLUSTER-OFFLINE-NODES",
-                "severity": "HIGH",
-                "affected_resource": "Cluster:Nodes",
-                "reason": f"Cluster node(s) offline: {offline_nodes}",
-                "evidence": {
-                    "offline_nodes": offline_nodes,
-                    "total_nodes": len(cluster_nodes)
-                },
-                "recommended_action": "Check process supervisor / service status on offline cluster member nodes.",
                 "generated_at": now.isoformat(),
                 "is_automated_execution_allowed": False
             })

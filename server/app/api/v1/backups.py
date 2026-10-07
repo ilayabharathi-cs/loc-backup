@@ -209,18 +209,29 @@ def create_backup_run(request: BackupRunCreate, db: Session = Depends(get_db)):
             detail=f"An active backup run (ID {conflicting_run.id}, type: {conflicting_run.backup_type}, state: {conflicting_run.state}) already exists for client '{client.client_id}' and policy '{policy_id}'. Simultaneous runs are prohibited."
         )
 
-    # Check if there is an active/pending job or create one
-    job_count = db.query(BackupJob).count()
-    job = BackupJob(
-        job_id=f"JOB-{9400 + job_count + 1}",
-        client_id=client.id,
-        policy_id=policy_id,
-        backup_type=eff_type,
-        status="running",
-        started_at=now
-    )
-    db.add(job)
-    db.flush()
+    # Attach to existing pending/queued job for this client, or create a new job
+    job = db.query(BackupJob).filter(
+        BackupJob.client_id == client.id,
+        BackupJob.status.in_(["pending", "queued"])
+    ).order_by(BackupJob.created_at.desc()).first()
+
+    if job:
+        job.status = "running"
+        job.started_at = now
+        if policy_id and not job.policy_id:
+            job.policy_id = policy_id
+    else:
+        job_count = db.query(BackupJob).count()
+        job = BackupJob(
+            job_id=f"JOB-{9400 + job_count + 1}",
+            client_id=client.id,
+            policy_id=policy_id,
+            backup_type=eff_type,
+            status="running",
+            started_at=now
+        )
+        db.add(job)
+        db.flush()
 
     # Phase 13: Issue 5-minute renewable run lease
     lease_id = str(uuid.uuid4())

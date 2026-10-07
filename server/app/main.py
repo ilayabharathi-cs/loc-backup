@@ -11,12 +11,12 @@ from app.api.v1 import (
     auth, clients, agents, policies, jobs, backups, restore, storage, retention, activity, dashboard,
     repositories, replication, security, alerts, dr, settings as settings_api,
     security_events, fleet, incidents, integrity, simulations,
-    fleet_bulk, operations, capacity, observability_api, compliance_api, reports_api,
+    operations, capacity, observability_api, compliance_api, reports_api,
     workloads, recovery_verification, recovery_readiness, backup_chains,
     policy_orchestration, remediations, dependencies
 )
 
-# Structured application logging
+# Structured application logging for RetroVault Local Backup
 logging.basicConfig(
     level=logging.INFO if settings.DEBUG else logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -131,7 +131,6 @@ app.include_router(fleet.router, prefix=settings.API_V1_STR)
 app.include_router(incidents.router, prefix=settings.API_V1_STR)
 app.include_router(integrity.router, prefix=settings.API_V1_STR)
 app.include_router(simulations.router, prefix=settings.API_V1_STR)
-app.include_router(fleet_bulk.router, prefix=settings.API_V1_STR)
 app.include_router(operations.router, prefix=settings.API_V1_STR)
 app.include_router(capacity.router, prefix=settings.API_V1_STR)
 app.include_router(observability_api.router, prefix=settings.API_V1_STR)

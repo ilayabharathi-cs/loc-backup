@@ -133,8 +133,15 @@ def get_agent_config(client_id: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(client)
 
-    # Find active default policy
-    policy = db.query(BackupPolicy).filter(BackupPolicy.is_active == True).first()
+    # Find client-specific assigned policy or active default policy
+    policy = None
+    if client.policy_override_id:
+        policy = db.query(BackupPolicy).filter(BackupPolicy.id == client.policy_override_id).first()
+    if not policy:
+        policy = db.query(BackupPolicy).filter(BackupPolicy.is_active == True).first()
+    if not policy:
+        policy = db.query(BackupPolicy).first()
+
     policy_dict = None
     if policy:
         paths = [

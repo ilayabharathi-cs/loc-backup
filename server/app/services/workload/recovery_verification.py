@@ -19,8 +19,6 @@ from app.models.workload_v11_models import (
     WorkloadArtifact
 )
 from app.models.recovery_point import RecoveryPoint
-from app.models.storage_object import StorageObject
-from app.models.cluster_v9_models import DistributedJob
 from app.models.audit_log import AuditLog
 from app.models.observability_v10_models import MetricSample
 

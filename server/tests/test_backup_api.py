@@ -18,6 +18,42 @@ def client():
     with TestClient(app) as c:
         yield c
 
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_client():
+    from app.database.session import SessionLocal
+    from app.models.client import Client
+    with SessionLocal() as db:
+        c = db.query(Client).filter(Client.client_id == "PC-001").first()
+        if not c:
+            c = Client(
+                client_id="PC-001",
+                hostname="TEST-CLIENT-001",
+                device_id="DEV-TEST-001",
+                os="Windows",
+                ip_address="127.0.0.1",
+                agent_version="1.0.0",
+                status="active"
+            )
+            db.add(c)
+            db.commit()
+    yield
+    with SessionLocal() as db:
+        from app.models.backup_run import BackupRun
+        from app.models.backup_file import BackupFile
+        from app.models.recovery_point import RecoveryPoint
+        from app.models.backup_job import BackupJob
+        from app.models.audit_log import AuditLog
+        from app.models.client import Client
+        c = db.query(Client).filter(Client.client_id == "PC-001").first()
+        if c:
+            db.query(AuditLog).filter(AuditLog.client_id == c.id).delete()
+            db.query(RecoveryPoint).filter(RecoveryPoint.client_id == c.id).delete()
+            db.query(BackupFile).filter(BackupFile.client_id == c.id).delete()
+            db.query(BackupRun).filter(BackupRun.client_id == c.id).delete()
+            db.query(BackupJob).filter(BackupJob.client_id == c.id).delete()
+            db.delete(c)
+            db.commit()
+
 
 # ==============================================================================
 # 1. Local Repository Object Creation & Deterministic Layout

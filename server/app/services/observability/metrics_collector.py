@@ -116,43 +116,41 @@ class MetricsCollector:
 
         # 1. Database connection pool & latency metrics
         try:
-            from app.services.cluster.database_health import DatabaseHealthProvider
-            provider = DatabaseHealthProvider(self.db)
-            db_res = provider.check_health()
-            lat = float(db_res.get("latency_ms", 0.0))
+            t0 = time.perf_counter()
+            self.db.execute(text("SELECT 1")).scalar()
+            lat = round((time.perf_counter() - t0) * 1000.0, 2)
             batch.append({
                 "metric_name": "database_latency_ms",
                 "value": lat,
                 "source": "database",
                 "labels": {"component": "postgres_sqlite"}
             })
-            pool_info = db_res.get("pool", {})
-            if isinstance(pool_info, dict) and "size" in pool_info:
+            bind = self.db.get_bind()
+            if hasattr(bind, "pool") and bind.pool:
+                pool_size = getattr(bind.pool, "size", 0)
+                if callable(pool_size):
+                    pool_size = pool_size()
                 batch.append({
                     "metric_name": "database_pool_size",
-                    "value": float(pool_info["size"]),
+                    "value": float(pool_size or 0),
                     "source": "database",
                     "labels": {"component": "pool"}
                 })
         except Exception as e:
             logger.warning(f"Error gathering database metrics: {e}")
 
-        # 2. Cluster & Distributed Queue metrics
+        # 2. Local Scheduler metrics
         try:
-            from app.models.cluster_v9_models import ClusterNode, DistributedJob
-            total_nodes = self.db.scalar(select(func.count(ClusterNode.id))) or 0
-            healthy_nodes = self.db.scalar(select(func.count(ClusterNode.id)).where(ClusterNode.status == "HEALTHY")) or 0
-            pending_jobs = self.db.scalar(select(func.count(DistributedJob.id)).where(DistributedJob.status == "PENDING")) or 0
-            running_jobs = self.db.scalar(select(func.count(DistributedJob.id)).where(DistributedJob.status == "RUNNING")) or 0
+            from app.models.backup_job import BackupJob
+            pending_jobs = self.db.scalar(select(func.count(BackupJob.id)).where(BackupJob.status == "PENDING")) or 0
+            running_jobs = self.db.scalar(select(func.count(BackupJob.id)).where(BackupJob.status == "RUNNING")) or 0
 
             batch.extend([
-                {"metric_name": "cluster_node_total", "value": float(total_nodes), "source": "cluster", "labels": {}},
-                {"metric_name": "cluster_node_healthy", "value": float(healthy_nodes), "source": "cluster", "labels": {}},
                 {"metric_name": "scheduler_queue_depth", "value": float(pending_jobs), "source": "scheduler", "labels": {"state": "pending"}},
                 {"metric_name": "scheduler_running_jobs", "value": float(running_jobs), "source": "scheduler", "labels": {"state": "running"}}
             ])
         except Exception as e:
-            logger.warning(f"Error gathering cluster metrics: {e}")
+            logger.warning(f"Error gathering scheduler metrics: {e}")
 
         # 3. Agent Fleet metrics
         try:

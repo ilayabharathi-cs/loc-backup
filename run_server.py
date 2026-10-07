@@ -27,7 +27,8 @@ def main():
         "app.main:app",
         "--host", "0.0.0.0",
         "--port", "8000",
-        "--app-dir", "server"
+        "--app-dir", "server",
+        "--reload"
     ])
     
     env = os.environ.copy()
