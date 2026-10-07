@@ -30,6 +30,7 @@ interface AppContextType {
   updatePolicy: (policy: BackupPolicy) => void;
   applyPolicyToClients: (policyId: string, clientIds: string[]) => void;
   updateClientPaths: (clientId: string, customPaths: string[], excludedPaths: string[]) => void;
+  markClientWaiting: (clientIds: string[]) => void;
   disconnectClient: (clientId: string) => void;
   deleteClient: (clientId: string) => void;
   executeRestore: (
@@ -175,7 +176,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           clientHostname: j.client_hostname || `CLIENT-${j.client_id}`,
           policyName: j.policy_name || 'Windows User Data',
           backupType: 'Incremental',
-          source: '%USERPROFILE%\\Documents, Desktop',
+          source: j.source_paths || '%USERPROFILE%\\Documents, Desktop',
           started: j.started_at ? new Date(j.started_at).toLocaleTimeString() : '',
           completed: j.completed_at ? new Date(j.completed_at).toLocaleTimeString() : null,
           duration: j.completed_at ? 'Completed' : 'Active',
@@ -468,6 +469,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addToast('Client Updated', `Custom path configuration updated for client ${clientId}`, 'info');
   };
 
+  const markClientWaiting = (clientIds: string[]) => {
+    setClients(prev => prev.map(c => clientIds.includes(c.id) ? { ...c, status: 'WAITING' } : c));
+  };
+
   const disconnectClient = async (clientId: string) => {
     playWin95Sound('click');
     try {
@@ -562,6 +567,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatePolicy,
       applyPolicyToClients,
       updateClientPaths,
+      markClientWaiting,
       disconnectClient,
       deleteClient,
       executeRestore,
