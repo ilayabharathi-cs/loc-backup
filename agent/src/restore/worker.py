@@ -27,7 +27,7 @@ class RestoreWorker:
             self.stop_event.wait(self.poll_interval)
             
     def poll_for_jobs(self):
-        client_id = self.identity.get_client_id()
+        client_id = self.identity.client_id
         if not client_id:
             return
             
