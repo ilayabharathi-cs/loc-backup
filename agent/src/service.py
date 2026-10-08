@@ -15,6 +15,7 @@ from agent.src.api_client import BackendApiClient, ApiClientError
 from agent.src.heartbeat import HeartbeatWorker
 from agent.src.scheduler import BackupScheduler
 from agent.src.backup.live_sync import ContinuousSyncWorker
+from agent.src.restore.worker import RestoreWorker
 from agent.src.windows.startup import ensure_startup_persistence
 
 # Windows Service imports (optional pywin32 support)
@@ -127,6 +128,21 @@ class RetroVaultAgentCore:
         )
         t_live_sync.start()
         self.threads.append(t_live_sync)
+
+        # 5. Start Restore Worker thread
+        restore_worker = RestoreWorker(
+            config=self.config,
+            identity=self.identity,
+            api_client=self.api_client,
+            stop_event=self.stop_event
+        )
+        t_restore = threading.Thread(
+            target=restore_worker.run_loop,
+            name="RestoreWorkerThread",
+            daemon=True
+        )
+        t_restore.start()
+        self.threads.append(t_restore)
 
         self.logger.info("RetroVault Backup Agent is active and running in background.")
         self.logger.info("Continuous live folder monitoring is ENABLED and watching for changes.")

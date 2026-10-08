@@ -311,3 +311,65 @@ def confirm_agent_credentials(client_id: str, credential_id: Optional[int] = Non
         message="Agent credential rotation confirmed and activated"
     )
 
+
+@router.get("/{client_id}/restore-jobs/pending", response_model=ApiResponse[List[Dict[str, Any]]])
+def get_pending_restore_jobs(client_id: str, db: Session = Depends(get_db)):
+    """Agent fetches pending restore jobs queued for it."""
+    client = None
+    if client_id.isdigit():
+        client = db.query(Client).filter(Client.id == int(client_id)).first()
+    if not client:
+        client = db.query(Client).filter(Client.client_id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+
+    from app.models.restore_job import RestoreJob
+    jobs = db.query(RestoreJob).filter(
+        RestoreJob.target_client_id == client.id,
+        RestoreJob.status == "PENDING_AGENT"
+    ).all()
+    
+    data = []
+    for j in jobs:
+        data.append({
+            "id": j.id,
+            "restore_id": j.restore_id,
+            "source_path": j.source_path,
+            "target_path": j.target_path,
+            "restore_mode": j.restore_mode,
+            "conflict_mode": j.conflict_mode,
+            "metadata_mode": j.metadata_mode,
+            "created_at": j.created_at.isoformat() if j.created_at else None
+        })
+    return ApiResponse(success=True, data=data, message=f"Found {len(data)} pending restore jobs")
+
+@router.post("/{client_id}/restore-jobs/{job_id}/status", response_model=ApiResponse[Dict[str, Any]])
+def update_restore_job_status(client_id: str, job_id: int, payload: Dict[str, Any], db: Session = Depends(get_db)):
+    """Agent reports status of a restore job."""
+    from app.models.restore_job import RestoreJob
+    job = db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restore job not found")
+
+    new_status = payload.get("status")
+    if new_status:
+        job.status = new_status
+        if new_status == "RUNNING" and not job.started_at:
+            job.started_at = datetime.datetime.now(datetime.timezone.utc)
+        if new_status in ["COMPLETED", "FAILED", "PARTIAL", "CANCELLED"]:
+            job.completed_at = datetime.datetime.now(datetime.timezone.utc)
+    
+    if "progress_percent" in payload:
+        job.progress_percent = payload["progress_percent"]
+    if "total_files" in payload:
+        job.total_files = payload["total_files"]
+    if "completed_files" in payload:
+        job.completed_files = payload["completed_files"]
+    if "failed_files" in payload:
+        job.failed_files = payload["failed_files"]
+    if "error_message" in payload:
+        job.error_message = payload["error_message"]
+
+    db.commit()
+    db.refresh(job)
+    return ApiResponse(success=True, data={"job_id": job.id, "status": job.status}, message="Status updated")

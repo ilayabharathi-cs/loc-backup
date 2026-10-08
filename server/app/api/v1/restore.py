@@ -353,28 +353,45 @@ def create_restore_job(
 
     # Execute if execute_now is True
     if execute_now:
-        job.status = "RUNNING"
-        job.started_at = now
-        db.commit()
-        db.refresh(job)
+        # Check if the target is a remote Windows agent
+        is_remote_agent = target_client.os and target_client.os.lower() == "windows"
+        
+        if is_remote_agent:
+            job.status = "PENDING_AGENT"
+            db.commit()
+            db.refresh(job)
+            log_audit_event(
+                db=db,
+                action="RESTORE_QUEUED_FOR_AGENT",
+                resource_type="restore",
+                resource_id=job.restore_id,
+                user_id=current_user.id if current_user else None,
+                client_id=target_client.id,
+                details=f"Restore job {job.restore_id} queued for remote Agent pickup"
+            )
+        else:
+            job.status = "RUNNING"
+            job.started_at = now
+            db.commit()
+            db.refresh(job)
 
-        def _bg_execute(job_id: int):
-            from app.database.session import SessionLocal
-            with SessionLocal() as bg_db:
-                bg_job = bg_db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
-                if not bg_job:
-                    return
-                bg_executor = RestoreExecutor(bg_db, bg_job)
-                try:
-                    bg_executor.execute_restore()
-                except Exception as e:
-                    bg_job.status = "FAILED"
-                    bg_job.error_message = str(e)
-                    bg_db.commit()
+            def _bg_execute(job_id: int):
+                from app.database.session import SessionLocal
+                with SessionLocal() as bg_db:
+                    bg_job = bg_db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
+                    if not bg_job:
+                        return
+                    bg_executor = RestoreExecutor(bg_db, bg_job)
+                    try:
+                        bg_executor.execute_restore()
+                    except Exception as e:
+                        bg_job.status = "FAILED"
+                        bg_job.error_message = str(e)
+                        bg_db.commit()
 
-        t = threading.Thread(target=_bg_execute, args=(job.id,), daemon=True)
-        t.start()
-        t.join(timeout=3.0)
+            t = threading.Thread(target=_bg_execute, args=(job.id,), daemon=True)
+            t.start()
+            t.join(timeout=3.0)
 
     db.refresh(job)
     return ApiResponse(success=True, data=_to_job_response(job, db), message="Restore operation recorded and started")
