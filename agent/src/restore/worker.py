@@ -76,8 +76,6 @@ class RestoreWorker:
             try:
                 dest = item["destination_path"]
                 # Resolve the destination
-                from agent.src.restore.path_validator import PathValidator
-                
                 # The backend already resolved the destination_path on the server side using the server's path_validator
                 # But since it's the server's path_validator, it might have added /mnt/c/ or ~/Restored_Windows_Drive/
                 # We should use the item's relative_path and the job's target_path!
