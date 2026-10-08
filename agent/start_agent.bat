@@ -98,13 +98,7 @@ if exist "%AGENT_ROOT%\config.json" (
 
 if exist "%CONFIG_FILE%" (
     echo [OK] Existing configuration found: %CONFIG_FILE%
-    echo Auto-connecting to configured server in 3 seconds...
-    choice /c YN /t 3 /d Y /m "Press N to change server IP, or wait to connect automatically" >nul 2>&1
-    if !ERRORLEVEL! equ 2 (
-        goto PROMPT_IP
-    ) else (
-        goto START_AGENT
-    )
+    goto START_AGENT
 )
 
 :PROMPT_IP
@@ -149,8 +143,7 @@ if !ERRORLEVEL! neq 0 (
     echo  1. The server is running (port 8000)
     echo  2. Firewall allows port 8000 on the host machine
     echo.
-    set /p RETRY="Start agent anyway and retry in background? (Y/n): "
-    if /i "!RETRY!"=="n" goto END
+    echo Starting agent anyway and retrying in background...
 )
 
 echo.
@@ -167,4 +160,3 @@ set "PYTHONPATH=%PARENT_DIR%;%AGENT_ROOT%;%PYTHONPATH%"
 %PYTHON_EXE% "%MAIN_PY%" --run
 
 :END
-pause
