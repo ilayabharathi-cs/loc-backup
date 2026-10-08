@@ -205,7 +205,8 @@ class RestorePlanner:
             raise ValueError(f"Recovery Point {recovery_point_id} not found")
 
         # Security check: validate destination root and any requested selected paths
-        PathValidator.resolve_destination(destination_root, "test.tmp")
+        if destination_root != "<ORIGINAL>":
+            PathValidator.resolve_destination(destination_root, "test.tmp")
         if selected_paths:
             for p in selected_paths:
                 PathValidator.sanitize_relative_path(p)
@@ -228,7 +229,18 @@ class RestorePlanner:
         for f in candidate_files:
             rel = f.relative_path or os.path.basename(f.original_path)
             clean_rel = PathValidator.sanitize_relative_path(rel)
-            target_dest = PathValidator.resolve_destination(destination_root, clean_rel)
+            
+            if destination_root == "<ORIGINAL>":
+                if f.original_path:
+                    target_dest = f.original_path
+                    if os.name != 'nt' and len(target_dest) >= 2 and target_dest[1] == ':' and target_dest[0].isalpha():
+                        dl = target_dest[0].lower()
+                        rest_of_path = target_dest[2:].replace('\\', '/')
+                        target_dest = f"/mnt/{dl}{rest_of_path}"
+                else:
+                    target_dest = PathValidator.resolve_destination("C:\\Restored", clean_rel)
+            else:
+                target_dest = PathValidator.resolve_destination(destination_root, clean_rel)
 
             total_logical_bytes += (f.size_bytes or 0)
 

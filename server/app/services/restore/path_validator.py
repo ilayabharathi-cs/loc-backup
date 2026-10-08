@@ -76,6 +76,14 @@ class PathValidator:
             raise PathSafetyError("Destination root path cannot be empty")
 
         clean_rel = cls.sanitize_relative_path(relative_path)
+        
+        # --- Linux Testing Hack ---
+        # If destination_root looks like a Windows path (e.g. C:\...) and we're on Linux,
+        # rewrite it to ~/Restored_Windows_Drive/...
+        if os.name != 'nt' and len(destination_root) >= 2 and destination_root[1] == ':' and destination_root[0].isalpha():
+            rest_of_path = destination_root[2:].replace('\\', '/').lstrip('/')
+            destination_root = os.path.join(os.path.expanduser("~/Restored_Windows_Drive"), rest_of_path)
+        # ----------------------------------
 
         # Canonicalize destination root
         norm_root = os.path.abspath(os.path.normpath(destination_root))

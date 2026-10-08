@@ -129,12 +129,17 @@ class RestoreExecutor:
                     raise RestoreExecutionError(err)
 
         # 5. Destination root path validation
-        try:
-            norm_dest_root = os.path.abspath(os.path.normpath(self.job.target_path))
-        except Exception as e:
-            err = f"Invalid destination root path '{self.job.target_path}': {e}"
-            self.transition_to("FAILED", error_message=err)
-            raise RestoreExecutionError(err)
+        if self.job.target_path != "<ORIGINAL>":
+            try:
+                dest_root = self.job.target_path
+                if os.name != 'nt' and len(dest_root) >= 2 and dest_root[1] == ':' and dest_root[0].isalpha():
+                    rest_of_path = dest_root[2:].replace('\\', '/').lstrip('/')
+                    dest_root = os.path.join(os.path.expanduser("~/Restored_Windows_Drive"), rest_of_path)
+                norm_dest_root = os.path.abspath(os.path.normpath(dest_root))
+            except Exception as e:
+                err = f"Invalid destination root path '{self.job.target_path}': {e}"
+                self.transition_to("FAILED", error_message=err)
+                raise RestoreExecutionError(err)
 
         # Transition to PLANNING
         self.transition_to("PLANNING")
@@ -144,7 +149,17 @@ class RestoreExecutor:
         for f in target_files:
             rel = f.relative_path or os.path.basename(f.original_path)
             clean_rel = PathValidator.sanitize_relative_path(rel)
-            dest_file_path = PathValidator.resolve_destination(norm_dest_root, clean_rel)
+            
+            if self.job.target_path == "<ORIGINAL>":
+                if f.original_path:
+                    dest_file_path = f.original_path
+                    if os.name != 'nt' and len(dest_file_path) >= 2 and dest_file_path[1] == ':' and dest_file_path[0].isalpha():
+                        rest_of_path = dest_file_path[2:].replace('\\', '/').lstrip('/')
+                        dest_file_path = os.path.join(os.path.expanduser("~/Restored_Windows_Drive"), rest_of_path)
+                else:
+                    dest_file_path = PathValidator.resolve_destination("C:\\Restored", clean_rel)
+            else:
+                dest_file_path = PathValidator.resolve_destination(norm_dest_root, clean_rel)
 
             item = RestoreItem(
                 restore_job_id=self.job.id,

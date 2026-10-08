@@ -216,22 +216,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const jobsRes = await jobsApi.list();
       let mappedJobs: BackupJob[] = [];
       if (jobsRes.success && Array.isArray(jobsRes.data)) {
-        mappedJobs = jobsRes.data.map((j: JobApiData) => ({
-          id: j.job_id,
-          clientId: j.client_identifier || `PC-${j.client_id}`,
-          clientHostname: j.client_hostname || `CLIENT-${j.client_id}`,
-          policyName: j.policy_name || 'Windows User Data',
-          backupType: 'Incremental',
-          source: j.source_paths || '%USERPROFILE%\\Documents, Desktop',
-          started: j.started_at ? new Date(j.started_at).toLocaleTimeString() : '',
-          completed: j.completed_at ? new Date(j.completed_at).toLocaleTimeString() : null,
-          duration: j.completed_at ? 'Completed' : 'Active',
-          dataProcessedMb: j.data_processed_mb || 0,
-          status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : j.status === 'paused' ? 'PAUSED' : 'RUNNING',
-          progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 0),
-          changeDetection: 'USN Journal (NTFS)',
-          transferSpeedMbps: 0
-        }));
+        mappedJobs = jobsRes.data.map((j: JobApiData) => {
+          const jobPolicy = mappedPolicies.find(p => p.id === `POL-${String(j.policy_id).padStart(3, '0')}` || p.id === String(j.policy_id));
+          const jobSource = jobPolicy 
+            ? jobPolicy.protectedFolders.filter(f => f.enabled).map(f => f.path.split('\\').pop()).concat(jobPolicy.customFolders.map(p => p.split('\\').pop() || p)).join(', ') || '%USERPROFILE%\\Pictures'
+            : '%USERPROFILE%\\Pictures';
+            
+          return {
+            id: j.job_id,
+            clientId: j.client_identifier || `PC-${j.client_id}`,
+            clientHostname: j.client_hostname || `CLIENT-${j.client_id}`,
+            policyName: j.policy_name || 'Windows User Data',
+            backupType: 'Incremental',
+            source: j.source_paths || jobSource,
+            started: j.started_at ? new Date(j.started_at + (j.started_at.includes('Z') ? '' : 'Z')).toLocaleTimeString() : '',
+            completed: j.completed_at ? new Date(j.completed_at + (j.completed_at.includes('Z') ? '' : 'Z')).toLocaleTimeString() : null,
+            duration: j.completed_at ? 'Completed' : 'Active',
+            dataProcessedMb: j.data_processed_mb || 0,
+            status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : j.status === 'paused' ? 'PAUSED' : 'RUNNING',
+            progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 0),
+            changeDetection: 'USN Journal (NTFS)',
+            transferSpeedMbps: 0
+          };
+        });
         setJobs(mappedJobs);
       }
 

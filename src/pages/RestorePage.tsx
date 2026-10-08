@@ -245,7 +245,7 @@ export const RestorePage: React.FC = () => {
 
   // Compute effective destination path
   const effectiveDestinationRoot = destinationType === 'ORIGINAL' 
-    ? (alternatePath || 'C:\\Restored') 
+    ? '<ORIGINAL>' 
     : alternatePath;
   const isCrossClient = selectedSourceClientId !== selectedTargetClientId;
 
@@ -720,32 +720,64 @@ export const RestorePage: React.FC = () => {
                           Target Device: {activeSourceClient?.hostname || 'Source Device'}
                         </span>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          value={alternatePath}
-                          onChange={e => {
-                            setAlternatePath(e.target.value);
-                            setDestinationType('ALTERNATE');
-                          }}
-                          placeholder="e.g. C:\RetroVaultRecovery or D:\Restored_Files"
-                          className="win-box-inset bg-white p-1 text-xs font-mono font-bold border border-[#808080] flex-1 text-black"
-                        />
-                        {activeClientPolicy?.deviceRecoveryPath && alternatePath !== activeClientPolicy.deviceRecoveryPath && (
-                          <WinButton
-                            onClick={() => {
-                              setAlternatePath(activeClientPolicy.deviceRecoveryPath!);
-                              setDestinationType('ALTERNATE');
-                            }}
-                            className="text-[10px] whitespace-nowrap"
-                          >
-                            Reset to Policy Path
-                          </WinButton>
-                        )}
+                      
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-1 cursor-pointer text-xs font-bold text-black">
+                          <input 
+                            type="radio" 
+                            name="deviceDestType" 
+                            checked={destinationType === 'ORIGINAL'} 
+                            onChange={() => setDestinationType('ORIGINAL')} 
+                          />
+                          Original Path
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer text-xs font-bold text-black">
+                          <input 
+                            type="radio" 
+                            name="deviceDestType" 
+                            checked={destinationType === 'ALTERNATE'} 
+                            onChange={() => setDestinationType('ALTERNATE')} 
+                          />
+                          Alternate Location
+                        </label>
                       </div>
-                      <div className="text-[11px] text-[#003366] bg-white p-1.5 border border-[#b0c4de] flex items-center justify-between">
+
+                      {destinationType === 'ALTERNATE' ? (
+                        <div className="flex gap-2 items-center mt-1">
+                          <input
+                            type="text"
+                            value={alternatePath}
+                            onChange={e => {
+                              setAlternatePath(e.target.value);
+                            }}
+                            placeholder="e.g. C:\RetroVaultRecovery or D:\Restored_Files"
+                            className="win-box-inset bg-white p-1 text-xs font-mono font-bold border border-[#808080] flex-1 text-black"
+                          />
+                          {activeClientPolicy?.deviceRecoveryPath && alternatePath !== activeClientPolicy.deviceRecoveryPath && (
+                            <WinButton
+                              onClick={() => {
+                                setAlternatePath(activeClientPolicy.deviceRecoveryPath!);
+                              }}
+                              className="text-[10px] whitespace-nowrap"
+                            >
+                              Reset to Policy Path
+                            </WinButton>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-1">
+                          <input
+                            type="text"
+                            value="<ORIGINAL_PATH>"
+                            disabled
+                            className="win-box-inset bg-gray-200 p-1 text-xs font-mono font-bold border border-[#808080] w-full text-gray-500"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="text-[11px] text-[#003366] bg-white p-1.5 border border-[#b0c4de] flex items-center justify-between mt-1">
                         <span>
-                          ✅ Recovered data will be put into: <strong className="font-mono text-black">{alternatePath || '(location required)'}</strong> and sent back to device <strong className="font-mono text-black">{activeSourceClient?.hostname}</strong>.
+                          ✅ Recovered data will be sent back to device <strong className="font-mono text-black">{activeSourceClient?.hostname}</strong> into: <strong className="font-mono text-black">{destinationType === 'ORIGINAL' ? 'Original Locations' : (alternatePath || '(location required)')}</strong>.
                         </span>
                         <span className="text-[9px] bg-green-100 text-green-900 border border-green-400 font-bold px-1.5 py-0.5 uppercase">
                           Direct Device Path
@@ -1167,13 +1199,22 @@ export const RestorePage: React.FC = () => {
                   <div className="win-box-outset bg-gray-100 p-2 border border-[#808080] flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 flex-1 min-w-[280px]">
                       <span className="font-bold text-gray-700 whitespace-nowrap">Target Destination:</span>
-                      <input
-                        type="text"
-                        value={alternatePath}
-                        onChange={e => setAlternatePath(e.target.value)}
-                        placeholder="e.g. C:\Restored or /tmp/restored"
-                        className="win-box-inset bg-white p-1 flex-1 font-mono text-xs border border-[#808080]"
-                      />
+                      {destinationType === 'ORIGINAL' ? (
+                        <input
+                          type="text"
+                          value="<ORIGINAL>"
+                          disabled
+                          className="win-box-inset bg-gray-200 p-1 flex-1 font-mono text-xs border border-[#808080] text-gray-500"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={alternatePath}
+                          onChange={e => setAlternatePath(e.target.value)}
+                          placeholder="e.g. C:\Restored or /tmp/restored"
+                          className="win-box-inset bg-white p-1 flex-1 font-mono text-xs border border-[#808080]"
+                        />
+                      )}
                       <WinButton onClick={handleCalculatePreview} disabled={loadingPreview} className="text-[11px]">
                         Apply
                       </WinButton>
@@ -1207,7 +1248,7 @@ export const RestorePage: React.FC = () => {
                     <div className="win-box-inset bg-white p-2 border border-[#808080]">
                       <span className="text-gray-500 block">Destination Root:</span>
                       <span className="font-bold text-xs truncate block font-mono" title={previewData.destination_root}>
-                        {previewData.destination_root}
+                        {previewData.destination_root === '<ORIGINAL>' ? 'Original Source Paths' : previewData.destination_root}
                       </span>
                     </div>
                   </div>
@@ -1387,7 +1428,7 @@ export const RestorePage: React.FC = () => {
                     <WinProgressBar percent={activeJob.progress_percent || 0} />
                     <div className="flex justify-between text-[11px] text-gray-600 font-mono">
                       <span>Restored: {(((activeJob.restored_bytes || 0)) / (1024 * 1024)).toFixed(2)} MB of {(((activeJob.total_bytes || 0)) / (1024 * 1024)).toFixed(2)} MB</span>
-                      <span>Destination: {activeJob.target_path}</span>
+                      <span>Destination: {activeJob.target_path === '<ORIGINAL>' ? 'Original Source Paths' : activeJob.target_path}</span>
                     </div>
                   </div>
 

@@ -179,6 +179,10 @@ def preview_restore(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Preview calculation failed: {e}")
 
 
@@ -246,14 +250,14 @@ def get_restore_job_logs(restore_id: str, db: Session = Depends(get_db)):
     logs = db.query(AuditLog).filter(
         AuditLog.resource_type == "restore",
         AuditLog.resource_id == job.restore_id
-    ).order_by(AuditLog.timestamp.desc()).all()
+    ).order_by(AuditLog.created_at.desc()).all()
 
     data = [
         {
             "id": l.id,
             "action": l.action,
             "details": l.details,
-            "timestamp": l.timestamp.isoformat() if l.timestamp else None,
+            "timestamp": l.created_at.isoformat() if l.created_at else None,
             "user_id": l.user_id
         }
         for l in logs
