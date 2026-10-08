@@ -227,7 +227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           completed: j.completed_at ? new Date(j.completed_at).toLocaleTimeString() : null,
           duration: j.completed_at ? 'Completed' : 'Active',
           dataProcessedMb: j.data_processed_mb || 0,
-          status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : 'RUNNING',
+          status: j.status === 'completed' ? 'SUCCESS' : j.status === 'failed' ? 'FAILED' : j.status === 'cancelled' ? 'FAILED' : j.status === 'paused' ? 'PAUSED' : 'RUNNING',
           progressPercent: j.progress_percent || (j.status === 'completed' ? 100 : 0),
           changeDetection: 'USN Journal (NTFS)',
           transferSpeedMbps: 0

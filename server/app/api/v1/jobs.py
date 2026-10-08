@@ -56,7 +56,7 @@ def list_jobs(
             processed_mb = round(latest_run.bytes_processed / (1024 * 1024), 1)
             if latest_run.status == "completed":
                 progress = 100
-            elif latest_run.status == "running":
+            elif latest_run.status in ("running", "paused"):
                 if latest_run.bytes_total > 0:
                     progress = min(99, max(1, int((latest_run.bytes_uploaded / latest_run.bytes_total) * 100)))
                 elif latest_run.files_discovered > 0:
@@ -99,7 +99,7 @@ def get_job(
         processed_mb = round(latest_run.bytes_processed / (1024 * 1024), 1)
         if latest_run.status == "completed":
             progress = 100
-        elif latest_run.status == "running":
+        elif latest_run.status in ("running", "paused"):
             if latest_run.bytes_total > 0:
                 progress = min(99, max(1, int((latest_run.bytes_uploaded / latest_run.bytes_total) * 100)))
             elif latest_run.files_discovered > 0:
